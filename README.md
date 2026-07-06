@@ -65,6 +65,13 @@ sono **finte** e servono a farsi due risate. **Non** usarlo per:
 
 L'uso improprio è responsabilità di chi lo fa.
 
+## Crediti
+
+Creato da **[@iltempe](https://github.com/iltempe)** — [dad, computer science
+engineer, civic hacker e songwriter](https://github.com/iltempe).
+
+Repository: [github.com/iltempe/takethatchat](https://github.com/iltempe/takethatchat)
+
 ## Licenza
 
 [MIT](LICENSE)

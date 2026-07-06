@@ -332,6 +332,19 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .phone.dark .typing-dots i { background: #6b8391; }
 @keyframes typing-blink { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 
+/* ---------- Crediti ---------- */
+.credits {
+  text-align: center;
+  padding: 22px 16px 34px;
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.credits-heart { margin-right: 4px; }
+.credits a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.credits a:hover { text-decoration: underline; }
+
 /* ============ MOBILE ============ */
 @media (max-width: 680px) {
   .topbar { flex-wrap: wrap; padding: 10px 12px; gap: 8px; position: static; }
