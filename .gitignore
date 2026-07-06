@@ -1,0 +1,10 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Dipendenze e build (non usate, ma per sicurezza)
+node_modules/
+dist/
+*.log

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TakeThatChat — Finte chat per scherzare</title>
+  <meta name="description" content="Crea screenshot di finte conversazioni per scherzare con gli amici. Stile messaggistica, esporta in PNG." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">💬</span>
+      <div>
+        <h1>TakeThatChat</h1>
+        <p class="tagline">Finte chat per scherzare — non prendetele sul serio 😉</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-theme" class="ghost-btn" title="Cambia tema editor">🌓</button>
+      <select id="export-format" class="export-sel" title="Formato file">
+        <option value="png">PNG</option>
+        <option value="jpg">JPG</option>
+      </select>
+      <select id="export-ratio" class="export-sel" title="Proporzioni">
+        <option value="natural">Naturale</option>
+        <option value="9x16">9:16 (storie)</option>
+      </select>
+      <button id="btn-export" class="primary-btn">📸 Esporta</button>
+      <button id="btn-video" class="primary-btn video-btn" title="Esporta come video animato (max 17s)">🎬 Video</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ EDITOR ============ -->
+    <section class="editor" aria-label="Editor">
+      <div class="panel">
+        <h2>Intestazione</h2>
+        <label>Nome contatto
+          <input type="text" id="contact-name" value="Mamma ❤️" maxlength="40" />
+        </label>
+        <label>Stato (sotto il nome)
+          <input type="text" id="contact-status" value="online" maxlength="40" />
+        </label>
+        <div class="row">
+          <label class="grow">Avatar
+            <input type="file" id="avatar-file" accept="image/*" />
+          </label>
+          <button id="avatar-clear" class="ghost-btn small" type="button">Rimuovi</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Barra di stato del telefono</h2>
+        <div class="row">
+          <label>Ora
+            <input type="text" id="phone-time" value="21:47" maxlength="8" />
+          </label>
+          <label>Operatore
+            <input type="text" id="phone-carrier" value="Fun Mobile" maxlength="16" />
+          </label>
+          <label>Batteria %
+            <input type="number" id="phone-battery" value="82" min="0" max="100" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Aspetto</h2>
+        <div class="row">
+          <label>Tema chat
+            <select id="chat-theme">
+              <option value="light">Chiaro</option>
+              <option value="dark">Scuro</option>
+            </select>
+          </label>
+          <label>Sfondo
+            <select id="chat-wallpaper">
+              <option value="doodle">Doodle</option>
+              <option value="plain">Tinta unita</option>
+              <option value="sunset">Tramonto</option>
+            </select>
+          </label>
+          <label>Accento
+            <input type="color" id="accent-color" value="#128a5a" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Messaggi</h2>
+          <span class="hint">Trascina per riordinare</span>
+        </div>
+        <ul id="msg-list" class="msg-editor-list"></ul>
+        <div class="add-msg">
+          <select id="new-msg-type" class="type-sel" title="Tipo di messaggio">
+            <option value="text">💬 Testo</option>
+            <option value="voice">🎤 Vocale</option>
+            <option value="audio">🎵 Audio</option>
+            <option value="photo">🖼️ Foto</option>
+            <option value="video">🎬 Video</option>
+          </select>
+          <div class="side-toggle" role="group" aria-label="Chi scrive">
+            <button type="button" class="side-btn active" data-side="in">Loro</button>
+            <button type="button" class="side-btn" data-side="out">Io</button>
+          </div>
+          <input type="text" id="new-msg-text" placeholder="Scrivi un messaggio e premi Invio…" />
+          <button id="add-msg-btn" class="primary-btn" type="button">Aggiungi</button>
+          <input type="file" id="new-media-file" accept="image/*" hidden />
+        </div>
+      </div>
+
+      <p class="disclaimer">
+        ⚠️ Strumento satirico/parodia. Le conversazioni generate sono <strong>finte</strong>.
+        Non usarlo per truffe, diffamazione o per far credere che siano reali. Usalo con testa.
+      </p>
+    </section>
+
+    <!-- ============ PREVIEW ============ -->
+    <section class="preview" aria-label="Anteprima">
+      <div class="phone" id="capture">
+        <div class="statusbar">
+          <span class="sb-time" id="sb-time">21:47</span>
+          <span class="sb-carrier" id="sb-carrier">Fun Mobile</span>
+          <span class="sb-right">
+            <span class="sb-signal">▂▄▆█</span>
+            <span class="sb-wifi">✦</span>
+            <span class="sb-batt"><span class="sb-batt-num" id="sb-batt-num">82</span>%<span class="sb-batt-icon"><i id="sb-batt-fill"></i></span></span>
+          </span>
+        </div>
+
+        <div class="chat-header">
+          <span class="ch-back">‹</span>
+          <div class="ch-avatar" id="ch-avatar"><span id="ch-avatar-initials">M</span></div>
+          <div class="ch-info">
+            <span class="ch-name" id="ch-name">Mamma ❤️</span>
+            <span class="ch-status" id="ch-status">online</span>
+          </div>
+          <div class="ch-icons"><span>📹</span><span>📞</span><span>⋮</span></div>
+        </div>
+
+        <div class="chat-body" id="chat-body">
+          <div class="chat-messages" id="chat-messages"></div>
+        </div>
+
+        <div class="chat-input">
+          <span class="ci-emoji">☺</span>
+          <div class="ci-field">Messaggio</div>
+          <span class="ci-clip">📎</span>
+          <span class="ci-cam">📷</span>
+          <span class="ci-send" id="ci-send">🎤</span>
+        </div>
+      </div>
+      <p class="preview-hint">Questa è l'anteprima. Premi <strong>Esporta</strong> per l'immagine (PNG/JPG, anche 9:16) o <strong>🎬 Video</strong> per l'animazione.</p>
+    </section>
+  </main>
+
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
