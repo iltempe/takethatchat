@@ -422,14 +422,102 @@
     return "";
   }
 
+  // --- WebCodecs: encoding deterministico a frame rate costante (ideale per TikTok) ---
+  function hasWebCodecs() {
+    return typeof window.VideoEncoder === "function" &&
+      typeof window.VideoFrame === "function" &&
+      window.Mp4Muxer && typeof window.Mp4Muxer.Muxer === "function";
+  }
+
+  async function pickAvcCodec(W, H) {
+    const cands = ["avc1.640028", "avc1.4D0028", "avc1.42E028", "avc1.4D401F", "avc1.42E01F"];
+    for (const codec of cands) {
+      try {
+        const s = await VideoEncoder.isConfigSupported({ codec, width: W, height: H, bitrate: 6000000, framerate: VIDEO_FPS });
+        if (s && s.supported) return codec;
+      } catch (e) { /* prova il prossimo */ }
+    }
+    return null;
+  }
+
+  async function encodeCFR(frameAt, total, W, H, onProgress) {
+    const codec = await pickAvcCodec(W, H);
+    if (!codec) return null;
+    const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: "avc", width: W, height: H, frameRate: VIDEO_FPS },
+      fastStart: "in-memory",
+    });
+    let encErr = null;
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch (e) { encErr = e; } },
+      error: (e) => { encErr = e; },
+    });
+    encoder.configure({ codec, width: W, height: H, bitrate: 6000000, framerate: VIDEO_FPS });
+
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const octx = off.getContext("2d");
+    const totalFrames = Math.max(1, Math.round(total * VIDEO_FPS));
+    const frameDurUs = 1e6 / VIDEO_FPS;
+
+    for (let i = 0; i < totalFrames; i++) {
+      if (encErr) throw encErr;
+      octx.fillStyle = "#0b141a"; octx.fillRect(0, 0, W, H);
+      octx.drawImage(frameAt(i / VIDEO_FPS), 0, 0, W, H);
+      const vf = new VideoFrame(off, { timestamp: Math.round(i * frameDurUs), duration: Math.round(frameDurUs) });
+      encoder.encode(vf, { keyFrame: i % (VIDEO_FPS * 2) === 0 });
+      vf.close();
+      if (encoder.encodeQueueSize > 8 || i % 6 === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+        if (onProgress) onProgress(i / totalFrames);
+      }
+    }
+    await encoder.flush();
+    encoder.close();
+    if (encErr) throw encErr;
+    return new Blob([muxer.target.buffer], { type: "video/mp4" });
+  }
+
+  // --- Fallback: MediaRecorder che campiona il canvas a fps fisso ---
+  function recordWithMediaRecorder(frameAt, total, W, H, mime) {
+    return new Promise((resolve, reject) => {
+      const out = document.createElement("canvas");
+      out.width = W; out.height = H;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(frameAt(0), 0, 0, W, H);
+      let stream;
+      try { stream = out.captureStream(VIDEO_FPS); } catch (e) { reject(e); return; }
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => resolve(new Blob(chunks, { type: mime }));
+      rec.onerror = (e) => reject(e.error || new Error("Errore di registrazione"));
+      rec.start();
+      const t0 = performance.now();
+      function frame() {
+        const t = (performance.now() - t0) / 1000;
+        ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(frameAt(Math.min(t, total)), 0, 0, W, H);
+        if (t >= total) { rec.stop(); return; }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
   async function exportVideo() {
     const btn = $("btn-video");
-    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
-      alert("Il tuo browser non supporta la registrazione video. Usa un browser recente (Chrome/Edge/Firefox).");
+    const canRecord = !!(window.MediaRecorder && HTMLCanvasElement.prototype.captureStream);
+    const webcodecs = hasWebCodecs();
+    if (!webcodecs && !canRecord) {
+      alert("Il tuo browser non supporta l'export video. Usa Chrome, Edge o Safari recenti.");
       return;
     }
-    const mime = pickVideoMime();
-    if (!mime) { alert("Nessun formato video supportato dal browser."); return; }
+    const mime = canRecord ? pickVideoMime() : "";
+    if (!webcodecs && !mime) { alert("Nessun formato video supportato dal browser."); return; }
     if (!state.messages.length) { alert("Aggiungi almeno un messaggio."); return; }
 
     const old = btn.textContent;
@@ -508,50 +596,33 @@
         return seq[seq.length - 1].canvas;
       };
 
-      // 2) Registrazione a FRAME RATE COSTANTE (720x1280 verticale per TikTok)
+      // 2) Encoding del video
       const W = vertical ? 720 : seq[0].canvas.width;
       const H = vertical ? 1280 : seq[0].canvas.height;
-      const out = document.createElement("canvas");
-      out.width = W; out.height = H;
-      const ctx = out.getContext("2d");
-      ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
-      ctx.drawImage(seq[0].canvas, 0, 0, W, H);
 
-      // Emissione manuale dei frame quando possibile → cadenza costante e stabile.
-      let stream, track, manual = false;
-      try {
-        stream = out.captureStream(0);
-        track = stream.getVideoTracks()[0];
-        manual = !!(track && typeof track.requestFrame === "function");
-      } catch (e) { /* fallback sotto */ }
-      if (!manual) {
-        stream = out.captureStream(VIDEO_FPS);
-        track = stream.getVideoTracks()[0];
+      let blob = null, ext = "mp4";
+
+      // Primario: WebCodecs → frame rate COSTANTE deterministico (niente jitter da
+      // tempo reale). È questo che rende la riproduzione fluida anche dopo il
+      // ri-caricamento su TikTok.
+      if (hasWebCodecs()) {
+        try {
+          btn.textContent = "🎞️ 0%";
+          blob = await encodeCFR(frameAt, total, W, H, (p) => { btn.textContent = "🎞️ " + Math.round(p * 100) + "%"; });
+        } catch (e) {
+          console.warn("WebCodecs non riuscito, uso MediaRecorder:", e);
+          blob = null;
+        }
       }
 
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
-      const chunks = [];
-      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-      const stopped = new Promise((res) => (rec.onstop = res));
-
-      btn.textContent = "🔴 Registro…";
-      rec.start();
-      const totalFrames = Math.max(1, Math.round(total * VIDEO_FPS));
-      const frameMs = 1000 / VIDEO_FPS;
-      const t0 = performance.now();
-      for (let i = 0; i < totalFrames; i++) {
-        const cur = frameAt(i / VIDEO_FPS);
-        ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
-        ctx.drawImage(cur, 0, 0, W, H);
-        if (manual) track.requestFrame();
-        const target = t0 + (i + 1) * frameMs;
-        await new Promise((r) => setTimeout(r, Math.max(0, target - performance.now())));
+      // Fallback: MediaRecorder (campiona il canvas a fps fisso)
+      if (!blob) {
+        if (!mime) throw new Error("Il browser non ha un encoder video utilizzabile.");
+        btn.textContent = "🔴 Registro…";
+        blob = await recordWithMediaRecorder(frameAt, total, W, H, mime);
+        ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
       }
-      rec.stop();
-      await stopped;
 
-      const blob = new Blob(chunks, { type: mime });
-      const ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
       const name = ($("contact-name").value || "chat").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 24);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -562,8 +633,8 @@
       if (ext === "webm") {
         setTimeout(() => alert(
           "Video salvato in .webm (verticale 9:16).\n\n" +
-          "Se TikTok non lo accetta, aprilo da telefono e salvalo/riesportalo come .mp4, " +
-          "oppure caricalo da un browser dove è disponibile l'MP4 (Safari o Chrome recente)."
+          "Per TikTok è meglio l'MP4: esporta da Chrome/Edge o Safari recenti, " +
+          "dove viene generato automaticamente in MP4 a frame rate costante."
         ), 300);
       }
     } catch (err) {
