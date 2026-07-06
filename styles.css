@@ -132,6 +132,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .msg-row.dragging { opacity: 0.4; }
 .msg-row .drag { cursor: grab; color: var(--muted); user-select: none; }
+.msg-row .reorder { display: none; flex-direction: column; gap: 2px; }
+.msg-row .mv { background: var(--panel); border: 1px solid var(--border); color: var(--muted); border-radius: 5px; font-size: 9px; line-height: 1; padding: 3px 5px; cursor: pointer; }
+.msg-row .mv:hover { color: var(--text); border-color: var(--accent); }
 .msg-row .who {
   font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; white-space: nowrap;
 }
@@ -320,6 +323,47 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .typing-dots i:nth-child(3) { animation-delay: 0.4s; }
 .phone.dark .typing-dots i { background: #6b8391; }
 @keyframes typing-blink { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+
+/* ============ MOBILE ============ */
+@media (max-width: 680px) {
+  .topbar { flex-wrap: wrap; padding: 10px 12px; gap: 8px; position: static; }
+  .brand-logo { width: 38px; height: 38px; font-size: 22px; }
+  .brand h1 { font-size: 16px; }
+  .tagline { display: none; }
+  .topbar-actions { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .topbar-actions .export-sel { flex: 1 1 42%; }
+  #btn-theme { flex: 0 0 auto; }
+  .topbar-actions .primary-btn { flex: 1 1 45%; padding: 12px 10px; }
+
+  .layout { padding: 12px; gap: 14px; }
+  .preview { position: static; top: auto; }
+  .phone { width: 100%; max-width: 420px; margin: 0 auto; }
+
+  /* niente zoom automatico su iOS quando si tocca un campo (serve >=16px) */
+  input[type="text"], input[type="number"], select,
+  .msg-row .txt, .msg-row .cap, .msg-row .dur, .msg-row .txt-time,
+  #new-msg-text { font-size: 16px; }
+
+  /* righe editor: vanno a capo invece di stringersi all'inverosimile */
+  .msg-row { flex-wrap: wrap; row-gap: 8px; padding: 10px; }
+  .msg-row .txt, .msg-row .cap { flex: 1 1 100%; order: 5; }
+  .msg-row .who { order: 1; padding: 6px 10px; }
+  .msg-row .type-tag { order: 1; }
+  .msg-row .thumb { order: 1; }
+  .msg-row .txt-time { order: 2; flex: 0 0 66px; }
+  .msg-row .dur { order: 2; }
+  .msg-row .tick-sel { order: 3; }
+  .msg-row .del { order: 4; margin-left: auto; padding: 4px 8px; font-size: 20px; }
+  .msg-row .drag { display: none; } /* il drag col dito è scomodo */
+  .msg-row .reorder { display: flex; order: 0; } /* si riordina coi pulsanti su/giù */
+
+  .add-msg { gap: 8px; }
+  .add-msg .type-sel { flex: 1 1 46%; }
+  .add-msg .side-toggle { flex: 1 1 46%; }
+  .add-msg .side-btn { flex: 1; padding: 10px 8px; }
+  .add-msg #new-msg-text { flex: 1 1 100%; order: 3; }
+  .add-msg #add-msg-btn { flex: 1 1 100%; order: 4; padding: 12px; }
+}
 
 /* chat input bar */
 .chat-input {

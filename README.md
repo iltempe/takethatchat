@@ -17,9 +17,13 @@ vengono caricate da nessuna parte**.
 - 👤 Nome contatto, stato ("online", "sta scrivendo…", "ultimo accesso…") e avatar
 - 📶 Barra di stato: ora, operatore, percentuale batteria
 - 🎨 Tema chiaro/scuro, sfondi diversi e colore d'accento personalizzabile
-- 📸 Esporta in **PNG o JPG**, proporzioni **naturali** o **9:16** (per le storie)
-- 🎬 Esporta in **video**: i messaggi compaiono uno alla volta, botta e risposta
-  (con bolla "sta scrivendo…"), durata massima **17 secondi**
+- 📱 **Ottimizzata per il mobile**: layout responsive, controlli grandi, riordino
+  dei messaggi con pulsanti ↑↓ (oltre al drag & drop su desktop)
+- 📸 Esporta in **PNG o JPG**, proporzioni **9:16** (TikTok/storie) o **naturali**
+- 🎬 Esporta in **video** pronto per **TikTok**: verticale **9:16 a 720×1280**, in
+  **MP4** dove il browser lo supporta (Safari/iOS, Chrome recente), altrimenti WebM.
+  I messaggi compaiono uno alla volta, botta e risposta (con bolla "sta
+  scrivendo…"), durata massima **17 secondi**
 
 ## Come si usa
 

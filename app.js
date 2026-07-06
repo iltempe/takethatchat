@@ -193,6 +193,10 @@
       }
 
       li.innerHTML = `
+        <span class="reorder">
+          <button class="mv up" type="button" title="Sposta su" aria-label="Sposta su">▲</button>
+          <button class="mv down" type="button" title="Sposta giù" aria-label="Sposta giù">▼</button>
+        </span>
         <span class="drag" title="Trascina">⠿</span>
         <button class="who ${m.side}" type="button" title="Cambia mittente">${m.side === "out" ? "Io" : "Loro"}</button>
         ${middle}
@@ -221,6 +225,8 @@
         state.messages = state.messages.filter((x) => x.id !== m.id);
         renderAll();
       });
+      li.querySelector(".mv.up").addEventListener("click", () => moveMsg(m.id, -1));
+      li.querySelector(".mv.down").addEventListener("click", () => moveMsg(m.id, 1));
 
       // eventi per tipo
       const txt = li.querySelector(".txt");
@@ -243,7 +249,17 @@
     });
   }
 
-  // ---- Drag & drop riordino ----
+  // ---- Riordino con pulsanti su/giù ----
+  function moveMsg(id, dir) {
+    const i = state.messages.findIndex((m) => m.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= state.messages.length) return;
+    const [m] = state.messages.splice(i, 1);
+    state.messages.splice(j, 0, m);
+    renderAll();
+  }
+
+  // ---- Drag & drop riordino (desktop) ----
   let dragId = null;
   function addDnD(li) {
     li.addEventListener("dragstart", (e) => {
@@ -376,11 +392,14 @@
   const VIDEO_MAX = 17; // secondi
 
   function pickVideoMime() {
+    // MP4/H.264 per primo: è il formato che TikTok (e il rullino di iPhone) accettano meglio.
     const candidates = [
+      "video/mp4;codecs=h264",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
       "video/webm;codecs=vp9",
       "video/webm;codecs=vp8",
       "video/webm",
-      "video/mp4",
     ];
     for (const c of candidates) {
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
@@ -404,7 +423,8 @@
 
     const chatBox = $("chat-messages");
     const savedHTML = chatBox.innerHTML;
-    const ratio = $("export-ratio").value;
+    // Il video è pensato per le storie/TikTok: sempre verticale 9:16.
+    const vertical = $("export-ratio").value !== "natural";
 
     try {
       // 1) Pre-render dei fotogrammi cumulativi
@@ -416,7 +436,7 @@
       async function shot(count, typing) {
         chatBox.innerHTML = messagesHTML(msgs.slice(0, count), typing);
         let c = await html2canvas($("capture"), { backgroundColor: "#0b141a", scale: 2, useCORS: true, logging: false });
-        if (ratio === "9x16") c = fit9x16(c);
+        if (vertical) c = fit9x16(c);
         return c;
       }
 
@@ -445,8 +465,9 @@
         total = VIDEO_MAX;
       }
 
-      // 2) Registrazione su canvas
-      const W = seq[0].canvas.width, H = seq[0].canvas.height;
+      // 2) Registrazione su canvas — dimensioni standard verticali per TikTok (720x1280)
+      const W = vertical ? 720 : seq[0].canvas.width;
+      const H = vertical ? 1280 : seq[0].canvas.height;
       const out = document.createElement("canvas");
       out.width = W; out.height = H;
       const ctx = out.getContext("2d");
@@ -482,10 +503,17 @@
       const name = ($("contact-name").value || "chat").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 24);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `takethatchat_${name || "chat"}${ratio === "9x16" ? "_9x16" : ""}.${ext}`;
+      link.download = `takethatchat_${name || "chat"}${vertical ? "_9x16" : ""}.${ext}`;
       link.href = url;
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      if (ext === "webm") {
+        setTimeout(() => alert(
+          "Video salvato in .webm (verticale 9:16).\n\n" +
+          "Se TikTok non lo accetta, aprilo da telefono e salvalo/riesportalo come .mp4, " +
+          "oppure caricalo da un browser dove è disponibile l'MP4 (Safari o Chrome recente)."
+        ), 300);
+      }
     } catch (err) {
       chatBox.innerHTML = savedHTML;
       alert("Ops, export video non riuscito: " + err.message);

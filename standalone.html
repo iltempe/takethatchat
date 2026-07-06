@@ -1,4 +1,10 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TakeThatChat — Finte chat per scherzare</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>💬</text></svg>" />
 <style>
 :root {
   --accent: #128a5a;
@@ -134,6 +140,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .msg-row.dragging { opacity: 0.4; }
 .msg-row .drag { cursor: grab; color: var(--muted); user-select: none; }
+.msg-row .reorder { display: none; flex-direction: column; gap: 2px; }
+.msg-row .mv { background: var(--panel); border: 1px solid var(--border); color: var(--muted); border-radius: 5px; font-size: 9px; line-height: 1; padding: 3px 5px; cursor: pointer; }
+.msg-row .mv:hover { color: var(--text); border-color: var(--accent); }
 .msg-row .who {
   font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; white-space: nowrap;
 }
@@ -323,6 +332,47 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .phone.dark .typing-dots i { background: #6b8391; }
 @keyframes typing-blink { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 
+/* ============ MOBILE ============ */
+@media (max-width: 680px) {
+  .topbar { flex-wrap: wrap; padding: 10px 12px; gap: 8px; position: static; }
+  .brand-logo { width: 38px; height: 38px; font-size: 22px; }
+  .brand h1 { font-size: 16px; }
+  .tagline { display: none; }
+  .topbar-actions { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .topbar-actions .export-sel { flex: 1 1 42%; }
+  #btn-theme { flex: 0 0 auto; }
+  .topbar-actions .primary-btn { flex: 1 1 45%; padding: 12px 10px; }
+
+  .layout { padding: 12px; gap: 14px; }
+  .preview { position: static; top: auto; }
+  .phone { width: 100%; max-width: 420px; margin: 0 auto; }
+
+  /* niente zoom automatico su iOS quando si tocca un campo (serve >=16px) */
+  input[type="text"], input[type="number"], select,
+  .msg-row .txt, .msg-row .cap, .msg-row .dur, .msg-row .txt-time,
+  #new-msg-text { font-size: 16px; }
+
+  /* righe editor: vanno a capo invece di stringersi all'inverosimile */
+  .msg-row { flex-wrap: wrap; row-gap: 8px; padding: 10px; }
+  .msg-row .txt, .msg-row .cap { flex: 1 1 100%; order: 5; }
+  .msg-row .who { order: 1; padding: 6px 10px; }
+  .msg-row .type-tag { order: 1; }
+  .msg-row .thumb { order: 1; }
+  .msg-row .txt-time { order: 2; flex: 0 0 66px; }
+  .msg-row .dur { order: 2; }
+  .msg-row .tick-sel { order: 3; }
+  .msg-row .del { order: 4; margin-left: auto; padding: 4px 8px; font-size: 20px; }
+  .msg-row .drag { display: none; } /* il drag col dito è scomodo */
+  .msg-row .reorder { display: flex; order: 0; } /* si riordina coi pulsanti su/giù */
+
+  .add-msg { gap: 8px; }
+  .add-msg .type-sel { flex: 1 1 46%; }
+  .add-msg .side-toggle { flex: 1 1 46%; }
+  .add-msg .side-btn { flex: 1; padding: 10px 8px; }
+  .add-msg #new-msg-text { flex: 1 1 100%; order: 3; }
+  .add-msg #add-msg-btn { flex: 1 1 100%; order: 4; padding: 12px; }
+}
+
 /* chat input bar */
 .chat-input {
   display: flex; align-items: center; gap: 10px;
@@ -338,6 +388,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 
 </style>
+</head>
+<body>
 <header class="topbar">
     <div class="brand">
       <span class="brand-logo">💬</span>
@@ -353,8 +405,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
         <option value="jpg">JPG</option>
       </select>
       <select id="export-ratio" class="export-sel" title="Proporzioni">
+        <option value="9x16" selected>9:16 (TikTok/storie)</option>
         <option value="natural">Naturale</option>
-        <option value="9x16">9:16 (storie)</option>
       </select>
       <button id="btn-export" class="primary-btn">📸 Esporta</button>
       <button id="btn-video" class="primary-btn video-btn" title="Esporta come video animato (max 17s)">🎬 Video</button>
@@ -420,7 +472,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       <div class="panel">
         <div class="panel-head">
           <h2>Messaggi</h2>
-          <span class="hint">Trascina per riordinare</span>
+          <span class="hint">Riordina con ↑↓ o trascina</span>
         </div>
         <ul id="msg-list" class="msg-editor-list"></ul>
         <div class="add-msg">
@@ -703,6 +755,10 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       }
 
       li.innerHTML = `
+        <span class="reorder">
+          <button class="mv up" type="button" title="Sposta su" aria-label="Sposta su">▲</button>
+          <button class="mv down" type="button" title="Sposta giù" aria-label="Sposta giù">▼</button>
+        </span>
         <span class="drag" title="Trascina">⠿</span>
         <button class="who ${m.side}" type="button" title="Cambia mittente">${m.side === "out" ? "Io" : "Loro"}</button>
         ${middle}
@@ -731,6 +787,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
         state.messages = state.messages.filter((x) => x.id !== m.id);
         renderAll();
       });
+      li.querySelector(".mv.up").addEventListener("click", () => moveMsg(m.id, -1));
+      li.querySelector(".mv.down").addEventListener("click", () => moveMsg(m.id, 1));
 
       // eventi per tipo
       const txt = li.querySelector(".txt");
@@ -753,7 +811,17 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     });
   }
 
-  // ---- Drag & drop riordino ----
+  // ---- Riordino con pulsanti su/giù ----
+  function moveMsg(id, dir) {
+    const i = state.messages.findIndex((m) => m.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= state.messages.length) return;
+    const [m] = state.messages.splice(i, 1);
+    state.messages.splice(j, 0, m);
+    renderAll();
+  }
+
+  // ---- Drag & drop riordino (desktop) ----
   let dragId = null;
   function addDnD(li) {
     li.addEventListener("dragstart", (e) => {
@@ -886,11 +954,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   const VIDEO_MAX = 17; // secondi
 
   function pickVideoMime() {
+    // MP4/H.264 per primo: è il formato che TikTok (e il rullino di iPhone) accettano meglio.
     const candidates = [
+      "video/mp4;codecs=h264",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
       "video/webm;codecs=vp9",
       "video/webm;codecs=vp8",
       "video/webm",
-      "video/mp4",
     ];
     for (const c of candidates) {
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
@@ -914,7 +985,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
     const chatBox = $("chat-messages");
     const savedHTML = chatBox.innerHTML;
-    const ratio = $("export-ratio").value;
+    // Il video è pensato per le storie/TikTok: sempre verticale 9:16.
+    const vertical = $("export-ratio").value !== "natural";
 
     try {
       // 1) Pre-render dei fotogrammi cumulativi
@@ -926,7 +998,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       async function shot(count, typing) {
         chatBox.innerHTML = messagesHTML(msgs.slice(0, count), typing);
         let c = await html2canvas($("capture"), { backgroundColor: "#0b141a", scale: 2, useCORS: true, logging: false });
-        if (ratio === "9x16") c = fit9x16(c);
+        if (vertical) c = fit9x16(c);
         return c;
       }
 
@@ -955,8 +1027,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
         total = VIDEO_MAX;
       }
 
-      // 2) Registrazione su canvas
-      const W = seq[0].canvas.width, H = seq[0].canvas.height;
+      // 2) Registrazione su canvas — dimensioni standard verticali per TikTok (720x1280)
+      const W = vertical ? 720 : seq[0].canvas.width;
+      const H = vertical ? 1280 : seq[0].canvas.height;
       const out = document.createElement("canvas");
       out.width = W; out.height = H;
       const ctx = out.getContext("2d");
@@ -992,10 +1065,17 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       const name = ($("contact-name").value || "chat").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 24);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `takethatchat_${name || "chat"}${ratio === "9x16" ? "_9x16" : ""}.${ext}`;
+      link.download = `takethatchat_${name || "chat"}${vertical ? "_9x16" : ""}.${ext}`;
       link.href = url;
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      if (ext === "webm") {
+        setTimeout(() => alert(
+          "Video salvato in .webm (verticale 9:16).\n\n" +
+          "Se TikTok non lo accetta, aprilo da telefono e salvalo/riesportalo come .mp4, " +
+          "oppure caricalo da un browser dove è disponibile l'MP4 (Safari o Chrome recente)."
+        ), 300);
+      }
     } catch (err) {
       chatBox.innerHTML = savedHTML;
       alert("Ops, export video non riuscito: " + err.message);
@@ -1071,3 +1151,5 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 })();
 
 </script>
+</body>
+</html>
