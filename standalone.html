@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TakeThatChat — Finte chat per scherzare</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>💬</text></svg>" />
 <style>
 :root {
   --accent: #128a5a;
@@ -277,6 +276,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .v-wave i { flex: 1; min-width: 2px; max-width: 3px; background: #9fb0bf; border-radius: 2px; }
 .bubble.out .v-wave i { background: #7fb89f; }
 .phone.dark .v-wave i { background: #4a5f6b; }
+.v-play.playing { background: var(--accent); }
+.v-wave i.on { background: var(--accent); }
+.phone.dark .v-wave i.on { background: var(--accent); filter: brightness(1.25); }
+.pausebars { display: inline-flex; gap: 3px; align-items: center; }
+.pausebars i { width: 3px; height: 12px; background: #fff; border-radius: 1px; }
+.media-play .pausebars i { width: 4px; height: 16px; }
+.media-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,0.35); }
+.media-progress i { display: block; height: 100%; background: var(--accent); }
 .v-meta { display: flex; flex-direction: column; align-items: center; gap: 1px; flex-shrink: 0; }
 .v-dur { font-size: 11px; color: #667; }
 .v-icon { font-size: 12px; opacity: 0.7; }
@@ -493,6 +500,16 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
         </div>
       </div>
 
+      <div class="panel">
+        <h2>Opzioni video</h2>
+        <div class="row">
+          <label>Riproduzione vocali/audio/video (secondi)
+            <input type="number" id="media-play-secs" value="4" min="1" max="15" step="1" />
+          </label>
+        </div>
+        <p class="hint" style="margin-top:8px; line-height:1.5">Nel video, quando compare un vocale, un audio o un video si simula la pressione del <strong>play ▶</strong> e resta in riproduzione per questi secondi (con avanzamento).</p>
+      </div>
+
       <p class="disclaimer">
         ⚠️ Strumento satirico/parodia. Le conversazioni generate sono <strong>finte</strong>.
         Non usarlo per truffe, diffamazione o per far credere che siano reali. Usalo con testa.
@@ -623,13 +640,22 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     return `${esc(m.text)}${metaHTML(m)}`;
   }
 
-  function voiceHTML(m) {
-    const bars = waveform(m.id, 26).map((h) => `<i style="height:${h}%"></i>`).join("");
+  const PAUSE_BARS = `<span class="pausebars"><i></i><i></i></span>`;
+
+  // playing: null = fermo; numero 0..1 = in riproduzione con avanzamento
+  function voiceHTML(m, playing) {
+    const bars = waveform(m.id, 26);
+    const played = playing == null ? -1 : Math.round(playing * (bars.length - 1));
+    const barsHTML = bars
+      .map((h, i) => `<i class="${playing != null && i <= played ? "on" : ""}" style="height:${h}%"></i>`)
+      .join("");
     const icon = m.type === "audio" ? "🎵" : "🎤";
+    const btn = playing != null
+      ? `<span class="v-play playing">${PAUSE_BARS}</span>`
+      : `<span class="v-play">▶</span>`;
     return (
-      `<div class="voice-inner">` +
-      `<span class="v-play">▶</span>` +
-      `<span class="v-wave">${bars}</span>` +
+      `<div class="voice-inner">` + btn +
+      `<span class="v-wave">${barsHTML}</span>` +
       `<span class="v-meta"><span class="v-dur">${esc(m.duration || DEFAULT_DUR[m.type] || "0:08")}</span>` +
       `<span class="v-icon">${icon}</span></span>` +
       `</div>` +
@@ -637,7 +663,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     );
   }
 
-  function mediaHTML(m) {
+  function mediaHTML(m, playing) {
     const hasCap = m.text && m.text.trim();
     const img = m.media
       ? `<img src="${m.media}" alt="" crossorigin="anonymous" />`
@@ -645,7 +671,10 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     let overlay = "";
     if (m.type === "video") {
       overlay =
-        `<span class="media-play">▶</span>` +
+        (playing != null
+          ? `<span class="media-play playing">${PAUSE_BARS}</span>` +
+            `<span class="media-progress"><i style="width:${Math.round(playing * 100)}%"></i></span>`
+          : `<span class="media-play">▶</span>`) +
         `<span class="media-badge">🎬 ${esc(m.duration || DEFAULT_DUR.video)}</span>`;
     }
     const tick = TICKS[m.tick] || "";
@@ -659,9 +688,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     return `<div class="media-wrap">${img}${overlay}${tickOverlay}</div>${caption}`;
   }
 
-  function bubbleInner(m) {
-    if (m.type === "voice" || m.type === "audio") return voiceHTML(m);
-    if (m.type === "photo" || m.type === "video") return mediaHTML(m);
+  function bubbleInner(m, playing) {
+    if (m.type === "voice" || m.type === "audio") return voiceHTML(m, playing);
+    if (m.type === "photo" || m.type === "video") return mediaHTML(m, playing);
     return textHTML(m);
   }
 
@@ -671,8 +700,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     return "text";
   }
 
-  function bubbleHTML(m) {
-    return `<div class="bubble ${bubbleClass(m)} ${m.side}">${bubbleInner(m)}</div>`;
+  function bubbleHTML(m, playing) {
+    const p = playing && playing.id === m.id ? playing.progress : null;
+    return `<div class="bubble ${bubbleClass(m)} ${m.side}">${bubbleInner(m, p)}</div>`;
   }
 
   function typingHTML(side) {
@@ -680,14 +710,15 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   }
 
   // Costruisce l'HTML per una lista di messaggi, con eventuale bolla "sta scrivendo…"
-  function messagesHTML(list, typing) {
-    let html = list.map(bubbleHTML).join("");
+  // e un eventuale messaggio "in riproduzione" (playing = {id, progress}).
+  function messagesHTML(list, typing, playing) {
+    let html = list.map((m) => bubbleHTML(m, playing)).join("");
     if (typing) html += typingHTML(typing);
     return html;
   }
 
   function renderMessages() {
-    $("chat-messages").innerHTML = messagesHTML(state.messages, null);
+    $("chat-messages").innerHTML = messagesHTML(state.messages, null, null);
   }
 
   function renderHeader() {
@@ -950,8 +981,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     }
   }
 
-  // ---- Export VIDEO (messaggi che appaiono uno alla volta, max 17s) ----
-  const VIDEO_MAX = 17; // secondi
+  // ---- Export VIDEO (messaggi che appaiono uno alla volta) ----
+  const VIDEO_SAFE_MAX = 60; // tetto di sicurezza in secondi
+  const VIDEO_FPS = 30;      // frame rate COSTANTE (importante per TikTok)
 
   function pickVideoMime() {
     // MP4/H.264 per primo: è il formato che TikTok (e il rullino di iPhone) accettano meglio.
@@ -987,16 +1019,19 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
     const savedHTML = chatBox.innerHTML;
     // Il video è pensato per le storie/TikTok: sempre verticale 9:16.
     const vertical = $("export-ratio").value !== "natural";
+    // Secondi di "ascolto/visione" simulati per vocali, audio e video.
+    let mediaPlay = parseFloat($("media-play-secs").value);
+    if (isNaN(mediaPlay)) mediaPlay = 4;
+    mediaPlay = Math.max(0.5, Math.min(15, mediaPlay));
 
     try {
-      // 1) Pre-render dei fotogrammi cumulativi
+      // 1) Pre-render dei fotogrammi: costruisce una sequenza di segmenti {canvas, dur}
       const msgs = state.messages;
       const N = msgs.length;
-      const startHold = 0.4, endHold = 1.4;
-      const perMsg = Math.min(2.2, Math.max(0.5, (VIDEO_MAX - startHold - endHold) / N));
+      const startHold = 0.5, endHold = 1.4, appearBeat = 0.5;
 
-      async function shot(count, typing) {
-        chatBox.innerHTML = messagesHTML(msgs.slice(0, count), typing);
+      async function shot(list, typing, playing) {
+        chatBox.innerHTML = messagesHTML(list, typing, playing);
         let c = await html2canvas($("capture"), { backgroundColor: "#0b141a", scale: 2, useCORS: true, logging: false });
         if (vertical) c = fit9x16(c);
         return c;
@@ -1004,30 +1039,55 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
       const seq = [];
       btn.textContent = "⏳ 0%";
-      seq.push({ canvas: await shot(0, null), dur: startHold });
+      seq.push({ canvas: await shot([], null, null), dur: startHold });
+
       for (let i = 1; i <= N; i++) {
         const m = msgs[i - 1];
+        const upto = msgs.slice(0, i);
+        // bolla "sta scrivendo…" prima dei messaggi in entrata
         if (m.side === "in") {
-          const typingDur = Math.min(0.9, perMsg * 0.45);
-          seq.push({ canvas: await shot(i - 1, "in"), dur: typingDur });
-          seq.push({ canvas: await shot(i, null), dur: Math.max(0.35, perMsg - typingDur) });
+          seq.push({ canvas: await shot(msgs.slice(0, i - 1), "in", null), dur: 0.9 });
+        }
+        // il messaggio compare (stato "fermo", play ▶ visibile)
+        const appear = await shot(upto, null, null);
+        seq.push({ canvas: appear, dur: appearBeat });
+
+        const playable = m.type === "voice" || m.type === "audio" || m.type === "video";
+        if (playable) {
+          // pressione play + riproduzione per mediaPlay secondi con avanzamento
+          const steps = Math.min(10, Math.max(3, Math.round(mediaPlay / 0.6)));
+          for (let k = 1; k <= steps; k++) {
+            const progress = k / steps;
+            const cv = await shot(upto, null, { id: m.id, progress });
+            seq.push({ canvas: cv, dur: mediaPlay / steps });
+          }
         } else {
-          seq.push({ canvas: await shot(i, null), dur: perMsg });
+          // testo o foto: tempo per leggere
+          const len = (m.text || "").length;
+          const readBeat = Math.min(3.2, Math.max(1.2, len * 0.045)) + (m.type === "photo" ? 0.9 : 0);
+          seq.push({ canvas: appear, dur: readBeat });
         }
         btn.textContent = "⏳ " + Math.round((i / N) * 100) + "%";
       }
       seq[seq.length - 1].dur += endHold;
       chatBox.innerHTML = savedHTML;
 
-      // rispetta il tetto dei 17s
+      // tetto di sicurezza: se troppo lungo, comprime proporzionalmente
       let total = seq.reduce((a, s) => a + s.dur, 0);
-      if (total > VIDEO_MAX) {
-        const k = VIDEO_MAX / total;
+      if (total > VIDEO_SAFE_MAX) {
+        const k = VIDEO_SAFE_MAX / total;
         seq.forEach((s) => (s.dur *= k));
-        total = VIDEO_MAX;
+        total = VIDEO_SAFE_MAX;
       }
+      // tempi cumulativi per la ricerca del fotogramma corrente
+      let accCum = 0;
+      for (const s of seq) { s.start = accCum; accCum += s.dur; }
+      const frameAt = (t) => {
+        for (const s of seq) { if (t < s.start + s.dur) return s.canvas; }
+        return seq[seq.length - 1].canvas;
+      };
 
-      // 2) Registrazione su canvas — dimensioni standard verticali per TikTok (720x1280)
+      // 2) Registrazione a FRAME RATE COSTANTE (720x1280 verticale per TikTok)
       const W = vertical ? 720 : seq[0].canvas.width;
       const H = vertical ? 1280 : seq[0].canvas.height;
       const out = document.createElement("canvas");
@@ -1036,27 +1096,36 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
       ctx.drawImage(seq[0].canvas, 0, 0, W, H);
 
-      const stream = out.captureStream(30);
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
+      // Emissione manuale dei frame quando possibile → cadenza costante e stabile.
+      let stream, track, manual = false;
+      try {
+        stream = out.captureStream(0);
+        track = stream.getVideoTracks()[0];
+        manual = !!(track && typeof track.requestFrame === "function");
+      } catch (e) { /* fallback sotto */ }
+      if (!manual) {
+        stream = out.captureStream(VIDEO_FPS);
+        track = stream.getVideoTracks()[0];
+      }
+
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
       const chunks = [];
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       const stopped = new Promise((res) => (rec.onstop = res));
 
       btn.textContent = "🔴 Registro…";
       rec.start();
+      const totalFrames = Math.max(1, Math.round(total * VIDEO_FPS));
+      const frameMs = 1000 / VIDEO_FPS;
       const t0 = performance.now();
-      await new Promise((resolve) => {
-        function frame() {
-          const t = (performance.now() - t0) / 1000;
-          let acc = 0, cur = seq[seq.length - 1].canvas;
-          for (const s of seq) { if (t < acc + s.dur) { cur = s.canvas; break; } acc += s.dur; }
-          ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
-          ctx.drawImage(cur, 0, 0, W, H);
-          if (t >= total) { resolve(); return; }
-          requestAnimationFrame(frame);
-        }
-        requestAnimationFrame(frame);
-      });
+      for (let i = 0; i < totalFrames; i++) {
+        const cur = frameAt(i / VIDEO_FPS);
+        ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(cur, 0, 0, W, H);
+        if (manual) track.requestFrame();
+        const target = t0 + (i + 1) * frameMs;
+        await new Promise((r) => setTimeout(r, Math.max(0, target - performance.now())));
+      }
       rec.stop();
       await stopped;
 

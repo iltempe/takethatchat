@@ -23,7 +23,11 @@ vengono caricate da nessuna parte**.
 - 🎬 Esporta in **video** pronto per **TikTok**: verticale **9:16 a 720×1280**, in
   **MP4** dove il browser lo supporta (Safari/iOS, Chrome recente), altrimenti WebM.
   I messaggi compaiono uno alla volta, botta e risposta (con bolla "sta
-  scrivendo…"), durata massima **17 secondi**
+  scrivendo…"). Registrazione a **frame rate costante (30fps)** per una
+  riproduzione fluida anche dopo il ri-caricamento su TikTok.
+- 🎧 **Riproduzione simulata**: nel video, quando compare un vocale/audio/video
+  si simula la pressione del **play** e resta in riproduzione (con avanzamento)
+  per un numero di secondi **configurabile**
 
 ## Come si usa
 
