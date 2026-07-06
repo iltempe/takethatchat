@@ -26,6 +26,9 @@ vengono caricate da nessuna parte**.
   scrivendo…"). Encoding a **frame rate costante (30fps)**: dove disponibile usa
   **WebCodecs** (H.264 con timestamp esatti, nessun jitter → fluido anche dopo il
   ri-caricamento/ri-codifica di TikTok), con fallback automatico a MediaRecorder.
+  Una sottile **barra di avanzamento** in alto (attivabile/disattivabile) tiene il
+  video in movimento continuo: evita che TikTok tratti i tratti "fermi" come
+  statici — la causa tipica degli scatti dopo l'import.
 - 🎧 **Riproduzione simulata**: nel video, quando compare un vocale/audio/video
   si simula la pressione del **play** e resta in riproduzione (con avanzamento)
   per un numero di secondi **configurabile**

@@ -440,7 +440,7 @@
     return null;
   }
 
-  async function encodeCFR(frameAt, total, W, H, onProgress) {
+  async function encodeCFR(paint, total, W, H, onProgress) {
     const codec = await pickAvcCodec(W, H);
     if (!codec) return null;
     const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
@@ -454,7 +454,7 @@
       output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch (e) { encErr = e; } },
       error: (e) => { encErr = e; },
     });
-    encoder.configure({ codec, width: W, height: H, bitrate: 6000000, framerate: VIDEO_FPS });
+    encoder.configure({ codec, width: W, height: H, bitrate: 9000000, framerate: VIDEO_FPS, latencyMode: "quality" });
 
     const off = document.createElement("canvas");
     off.width = W; off.height = H;
@@ -464,10 +464,9 @@
 
     for (let i = 0; i < totalFrames; i++) {
       if (encErr) throw encErr;
-      octx.fillStyle = "#0b141a"; octx.fillRect(0, 0, W, H);
-      octx.drawImage(frameAt(i / VIDEO_FPS), 0, 0, W, H);
+      paint(octx, i / VIDEO_FPS);
       const vf = new VideoFrame(off, { timestamp: Math.round(i * frameDurUs), duration: Math.round(frameDurUs) });
-      encoder.encode(vf, { keyFrame: i % (VIDEO_FPS * 2) === 0 });
+      encoder.encode(vf, { keyFrame: i % VIDEO_FPS === 0 }); // keyframe ogni secondo
       vf.close();
       if (encoder.encodeQueueSize > 8 || i % 6 === 0) {
         await new Promise((r) => setTimeout(r, 0));
@@ -481,16 +480,15 @@
   }
 
   // --- Fallback: MediaRecorder che campiona il canvas a fps fisso ---
-  function recordWithMediaRecorder(frameAt, total, W, H, mime) {
+  function recordWithMediaRecorder(paint, total, W, H, mime) {
     return new Promise((resolve, reject) => {
       const out = document.createElement("canvas");
       out.width = W; out.height = H;
       const ctx = out.getContext("2d");
-      ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
-      ctx.drawImage(frameAt(0), 0, 0, W, H);
+      paint(ctx, 0);
       let stream;
       try { stream = out.captureStream(VIDEO_FPS); } catch (e) { reject(e); return; }
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 9000000 });
       const chunks = [];
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       rec.onstop = () => resolve(new Blob(chunks, { type: mime }));
@@ -499,8 +497,7 @@
       const t0 = performance.now();
       function frame() {
         const t = (performance.now() - t0) / 1000;
-        ctx.fillStyle = "#0b141a"; ctx.fillRect(0, 0, W, H);
-        ctx.drawImage(frameAt(Math.min(t, total)), 0, 0, W, H);
+        paint(ctx, Math.min(t, total));
         if (t >= total) { rec.stop(); return; }
         requestAnimationFrame(frame);
       }
@@ -599,6 +596,23 @@
       // 2) Encoding del video
       const W = vertical ? 720 : seq[0].canvas.width;
       const H = vertical ? 1280 : seq[0].canvas.height;
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#128a5a";
+      const barH = Math.max(4, Math.round(H * 0.007));
+
+      // Compositore: disegna il fotogramma + una barra "storia" in alto che avanza
+      // in modo continuo. Così OGNI frame è diverso dal precedente e TikTok non
+      // tratta il video come statico (è questo che causava gli scatti).
+      const showBar = $("video-progress-bar").checked;
+      function paint(dctx, t) {
+        dctx.globalAlpha = 1;
+        dctx.fillStyle = "#0b141a"; dctx.fillRect(0, 0, W, H);
+        dctx.drawImage(frameAt(t), 0, 0, W, H);
+        if (showBar) {
+          const p = Math.max(0, Math.min(1, total ? t / total : 1));
+          dctx.fillStyle = "rgba(0,0,0,0.30)"; dctx.fillRect(0, 0, W, barH);
+          dctx.fillStyle = "#ffffff"; dctx.fillRect(0, 0, Math.round(W * p), barH);
+        }
+      }
 
       let blob = null, ext = "mp4";
 
@@ -608,7 +622,7 @@
       if (hasWebCodecs()) {
         try {
           btn.textContent = "🎞️ 0%";
-          blob = await encodeCFR(frameAt, total, W, H, (p) => { btn.textContent = "🎞️ " + Math.round(p * 100) + "%"; });
+          blob = await encodeCFR(paint, total, W, H, (p) => { btn.textContent = "🎞️ " + Math.round(p * 100) + "%"; });
         } catch (e) {
           console.warn("WebCodecs non riuscito, uso MediaRecorder:", e);
           blob = null;
@@ -619,7 +633,7 @@
       if (!blob) {
         if (!mime) throw new Error("Il browser non ha un encoder video utilizzabile.");
         btn.textContent = "🔴 Registro…";
-        blob = await recordWithMediaRecorder(frameAt, total, W, H, mime);
+        blob = await recordWithMediaRecorder(paint, total, W, H, mime);
         ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
       }
 
