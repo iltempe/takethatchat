@@ -113,6 +113,7 @@ out|😍🔥</textarea>
     </section>
   </div>
 
+  <script src="vendor/mp4-muxer.js"></script>
   <script>
   (function () {
     "use strict";
@@ -396,35 +397,121 @@ out|😍🔥</textarea>
       for (const m of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
       return "";
     }
-    $("export").addEventListener("click", async () => {
-      if (run._stop) run._stop();
-      const btn = $("export"); const mime = pickMime();
-      if (!mime) { setStatus("Il browser non supporta la registrazione video."); return; }
-      const msgs = parseMessages(), o = opts();
-      btn.disabled = true;
+
+    // --- WebCodecs: video H.264 a frame rate COSTANTE + audio AAC (max fluidità su TikTok) ---
+    const VFPS = 30;
+    function hasWC() {
+      return typeof window.VideoEncoder === "function" && typeof window.VideoFrame === "function" &&
+        window.Mp4Muxer && typeof window.Mp4Muxer.Muxer === "function";
+    }
+    async function pickAvc(W, H) {
+      for (const codec of ["avc1.640028", "avc1.4D0028", "avc1.42E028", "avc1.4D401F", "avc1.42E01F"]) {
+        try { const s = await VideoEncoder.isConfigSupported({ codec, width: W, height: H, bitrate: 9000000, framerate: VFPS }); if (s && s.supported) return codec; } catch (e) {}
+      }
+      return null;
+    }
+    // ritorna {blob, audio} oppure null (→ fallback)
+    async function encodeAV(msgs, o) {
+      if (!hasWC()) return null;
+      const W = canvas.width, H = canvas.height, total = totalDuration(msgs, o);
+      const codec = await pickAvc(W, H); if (!codec) return null;
+      const mus = music(msgs, o);
+      const wantAudio = !!(audioBuffer && mus.idx >= 0);
+      let aacOk = false;
+      if (wantAudio && typeof window.AudioEncoder === "function" && typeof window.AudioData === "function") {
+        try { const s = await AudioEncoder.isConfigSupported({ codec: "mp4a.40.2", sampleRate: audioBuffer.sampleRate, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 160000 }); aacOk = !!(s && s.supported); } catch (e) { aacOk = false; }
+      }
+      // se serve la musica ma l'AAC non c'è, meglio il fallback (che include l'audio)
+      // che un video CFR muto.
+      if (wantAudio && !aacOk) return null;
       try {
+        const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
+        let err = null, vcount = 0, acount = 0;
+        const cfg = { target: new ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: VFPS }, fastStart: "in-memory" };
+        if (wantAudio && aacOk) cfg.audio = { codec: "aac", numberOfChannels: audioBuffer.numberOfChannels, sampleRate: audioBuffer.sampleRate };
+        const muxer = new Muxer(cfg);
+        const venc = new VideoEncoder({ output: (c, m) => { vcount++; try { muxer.addVideoChunk(c, m); } catch (e) { err = e; } }, error: (e) => { err = e; } });
+        venc.configure({ codec, width: W, height: H, bitrate: 9000000, framerate: VFPS });
+        let aenc = null;
+        if (wantAudio && aacOk) {
+          aenc = new AudioEncoder({ output: (c, m) => { acount++; try { muxer.addAudioChunk(c, m); } catch (e) { err = e; } }, error: (e) => { err = e; } });
+          try { aenc.configure({ codec: "mp4a.40.2", sampleRate: audioBuffer.sampleRate, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 160000 }); } catch (e) { aenc = null; }
+        }
+        // audio: PCM su tutta la durata, silenzio prima del messaggio audio, brano dall'offset
+        if (aenc) {
+          const sr = audioBuffer.sampleRate, ch = audioBuffer.numberOfChannels, totalSamples = Math.ceil(total * sr);
+          const planes = []; for (let c = 0; c < ch; c++) planes.push(new Float32Array(totalSamples));
+          const startS = Math.floor(mus.start * sr), offS = Math.floor((mus.offset || 0) * sr);
+          for (let c = 0; c < ch; c++) { const sd = audioBuffer.getChannelData(c); for (let n = 0; startS + n < totalSamples && offS + n < sd.length; n++) planes[c][startS + n] = sd[offS + n]; }
+          const BLK = 8192;
+          for (let pos = 0; pos < totalSamples; pos += BLK) {
+            if (err) return null;
+            const N = Math.min(BLK, totalSamples - pos), data = new Float32Array(N * ch);
+            for (let c = 0; c < ch; c++) data.set(planes[c].subarray(pos, pos + N), c * N);
+            const ad = new AudioData({ format: "f32-planar", sampleRate: sr, numberOfFrames: N, numberOfChannels: ch, timestamp: Math.round(pos / sr * 1e6), data });
+            aenc.encode(ad); ad.close();
+            if (aenc.encodeQueueSize > 16) await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+        // video: un frame ogni 1/30s, timestamp esatti
+        const btn = $("export"), totalFrames = Math.max(1, Math.round(total * VFPS)), fdur = 1e6 / VFPS;
+        for (let i = 0; i < totalFrames; i++) {
+          if (err) return null;
+          draw(msgs, i / VFPS, o);
+          const vf = new VideoFrame(canvas, { timestamp: Math.round(i * fdur), duration: Math.round(fdur) });
+          venc.encode(vf, { keyFrame: i % VFPS === 0 }); vf.close();
+          if (venc.encodeQueueSize > 8 || i % 10 === 0) { await new Promise((r) => setTimeout(r, 0)); btn.textContent = "🎞️ " + Math.round(i / totalFrames * 100) + "%"; }
+        }
+        await venc.flush(); try { venc.close(); } catch (e) {}
+        if (aenc) { await aenc.flush(); try { aenc.close(); } catch (e) {} }
+        if (err || vcount === 0) return null;
+        if (aenc && acount === 0) return null; // audio previsto ma non prodotto → fallback
+        muxer.finalize();
+        const buf = muxer.target && muxer.target.buffer;
+        if (!buf || buf.byteLength < 512) return null;
+        return { blob: new Blob([buf], { type: "video/mp4" }), audio: !!aenc };
+      } catch (e) { console.warn("encodeAV fallito:", e); return null; }
+    }
+
+    // --- fallback: MediaRecorder in tempo reale (con audio) ---
+    function recordRealtime(msgs, o, mime) {
+      return new Promise((resolve, reject) => {
         const vstream = canvas.captureStream(30);
-        // avvia il clock (crea l'eventuale traccia audio schedulata)
         const dur = run(msgs, o, false, null);
         const tracks = [vstream.getVideoTracks()[0]];
         if (run._audioTrack) tracks.push(run._audioTrack);
         const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 8000000, audioBitsPerSecond: 160000 });
         const chunks = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-        const stopped = new Promise((r) => (rec.onstop = r));
-        setStatus("🔴 Registro… (" + dur.toFixed(1) + "s)");
+        rec.onstop = () => { if (run._stop) run._stop(); resolve(new Blob(chunks, { type: mime })); };
+        rec.onerror = (e) => reject(e.error || new Error("errore registrazione"));
         rec.start();
-        await new Promise((res) => setTimeout(res, dur * 1000 + 250));
-        rec.stop(); await stopped; if (run._stop) run._stop();
-        const ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
-        const blob = new Blob(chunks, { type: mime });
-        if (blob.size < 1024) throw new Error("video vuoto");
+        setTimeout(() => { try { rec.stop(); } catch (e) {} }, dur * 1000 + 250);
+      });
+    }
+
+    $("export").addEventListener("click", async () => {
+      if (run._stop) run._stop();
+      const btn = $("export"), oldTxt = btn.textContent;
+      const msgs = parseMessages(), o = opts();
+      btn.disabled = true;
+      try {
+        let blob = null, ext = "mp4", viaWC = false, hadAudio = false;
+        if (hasWC()) { btn.textContent = "🎞️ 0%"; try { const r = await encodeAV(msgs, o); if (r) { blob = r.blob; viaWC = true; hadAudio = r.audio; } } catch (e) { blob = null; } }
+        if (!blob) {
+          const mime = pickMime();
+          if (!mime) { setStatus("Il browser non supporta l'export video."); return; }
+          setStatus("🔴 Registro…");
+          blob = await recordRealtime(msgs, o, mime);
+          ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
+          hadAudio = !!(audioBuffer && music(msgs, o).idx >= 0);
+        }
+        if (!blob || blob.size < 1024) throw new Error("video vuoto");
         const url = URL.createObjectURL(blob); const a = document.createElement("a");
         a.download = "takethatchat_studio_9x16." + ext; a.href = url; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 8000);
-        const withAudio = audioBuffer && music(msgs, o).idx >= 0;
-        setStatus("✓ Esportato (" + ext.toUpperCase() + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (withAudio ? " — musica dal messaggio audio" : " — nessun audio"));
+        setStatus("✓ Esportato (" + ext.toUpperCase() + (viaWC ? " · CFR" : "") + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (hadAudio ? " — con musica" : " — nessun audio"));
       } catch (err) { setStatus("Export non riuscito: " + err.message); }
-      finally { btn.disabled = false; }
+      finally { btn.disabled = false; btn.textContent = oldTxt; }
     });
 
     function setStatus(s) { $("status").textContent = s; }
