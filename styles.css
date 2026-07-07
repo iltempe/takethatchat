@@ -336,6 +336,27 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .phone.dark .typing-dots i { background: #6b8391; }
 @keyframes typing-blink { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 
+/* ---------- Banner consenso analytics ---------- */
+.consent {
+  position: fixed;
+  left: 16px; right: 16px; bottom: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  z-index: 100;
+}
+.consent-text { font-size: 13px; color: var(--muted); line-height: 1.5; flex: 1; min-width: 220px; }
+.consent-btns { display: flex; gap: 8px; flex-shrink: 0; }
+
 /* ---------- Crediti ---------- */
 .credits {
   text-align: center;

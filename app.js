@@ -6,49 +6,47 @@
   "use strict";
 
   // ============================================================
-  // Tracker visite (analytics privata su Supabase) — privacy-minimal.
-  // Riempi url e anonKey col tuo progetto: finché sono vuoti è disattivato.
-  // NON raccoglie dati identificanti: niente user-agent, niente risoluzione,
-  // referrer ridotto al solo dominio, id di sessione EFFIMERO (sessionStorage,
-  // si azzera chiudendo la scheda). Nessun IP viene registrato lato client.
-  // La chiave "anon" è pubblica; i dati restano privati grazie a RLS (solo insert).
+  // Analytics: Google Analytics 4 con banner di consenso (richiesto in UE).
+  // Inserisci il tuo Measurement ID qui sotto. Finché è vuoto: nessun banner,
+  // nessuno script di Google caricato, nessun tracciamento.
+  // GA viene caricato SOLO dopo il consenso esplicito dell'utente.
   // ============================================================
-  const ANALYTICS = {
-    url: "",      // es. "https://xxxx.supabase.co"
-    anonKey: "",  // chiave publishable/anon del progetto
-  };
+  const GA_ID = ""; // es. "G-XXXXXXXXXX"
+  const CONSENT_KEY = "ttc_analytics_consent";
 
-  function trackVisit() {
-    try {
-      if (!ANALYTICS.url || !ANALYTICS.anonKey) return; // non configurato
-      // referrer: solo il dominio di provenienza, mai l'URL completo
-      let refHost = null;
-      try { if (document.referrer) refHost = new URL(document.referrer).hostname || null; } catch (e) { /* ignora */ }
-      // sessione effimera: distingue le visite senza tracciare l'utente nel tempo
-      let sid = null;
-      try { sid = sessionStorage.getItem("ttc_sid"); } catch (e) { /* ignora */ }
-      if (!sid) {
-        sid = Math.random().toString(36).slice(2);
-        try { sessionStorage.setItem("ttc_sid", sid); } catch (e) { /* ignora */ }
-      }
-      const body = {
-        path: location.pathname,
-        referrer: refHost,
-        lang: (navigator.language || "").slice(0, 10) || null,
-        session: sid,
-      };
-      fetch(ANALYTICS.url.replace(/\/$/, "") + "/rest/v1/visits", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: ANALYTICS.anonKey,
-          Authorization: "Bearer " + ANALYTICS.anonKey,
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify(body),
-        keepalive: true,
-      }).catch(function () { /* mai bloccare l'app per il tracker */ });
-    } catch (e) { /* mai bloccare l'app per il tracker */ }
+  function loadGA() {
+    if (!GA_ID || window.__ttcGA) return;
+    window.__ttcGA = true;
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(GA_ID);
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { window.dataLayer.push(arguments); }
+    window.gtag = gtag;
+    gtag("js", new Date());
+    gtag("config", GA_ID, { anonymize_ip: true });
+  }
+
+  function setConsent(v) {
+    try { localStorage.setItem(CONSENT_KEY, v); } catch (e) { /* ignora */ }
+    const banner = $("consent");
+    if (banner) banner.hidden = true;
+    if (v === "granted") loadGA();
+  }
+
+  function initAnalytics() {
+    if (!GA_ID) return; // non configurato → niente banner, niente tracciamento
+    let c = null;
+    try { c = localStorage.getItem(CONSENT_KEY); } catch (e) { /* ignora */ }
+    if (c === "granted") { loadGA(); return; }
+    if (c === "denied") return;
+    const banner = $("consent");
+    if (!banner) return;
+    banner.hidden = false;
+    const acc = $("consent-accept"), rej = $("consent-reject");
+    if (acc) acc.addEventListener("click", () => setConsent("granted"));
+    if (rej) rej.addEventListener("click", () => setConsent("denied"));
   }
 
   // ---- Stato ----
@@ -898,5 +896,5 @@
   if (saved) applyState(saved);
   else renderAll();
 
-  trackVisit();
+  initAnalytics();
 })();
