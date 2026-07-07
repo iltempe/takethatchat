@@ -5,6 +5,48 @@
 (function () {
   "use strict";
 
+  // ============================================================
+  // Tracker visite (analytics privata su Supabase).
+  // Riempi url e anonKey col tuo progetto: finché sono vuoti è disattivato.
+  // La chiave "anon" è pubblica per definizione; i dati restano privati grazie
+  // alle policy RLS (inserimento consentito, lettura no).
+  // ============================================================
+  const ANALYTICS = {
+    url: "",      // es. "https://xxxx.supabase.co"
+    anonKey: "",  // chiave publishable/anon del progetto
+  };
+
+  function trackVisit() {
+    try {
+      if (!ANALYTICS.url || !ANALYTICS.anonKey) return; // non configurato
+      let sid = null;
+      try { sid = localStorage.getItem("ttc_sid"); } catch (e) { /* ignora */ }
+      if (!sid) {
+        sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        try { localStorage.setItem("ttc_sid", sid); } catch (e) { /* ignora */ }
+      }
+      const body = {
+        path: location.pathname,
+        referrer: document.referrer || null,
+        lang: navigator.language || null,
+        screen: (screen.width || 0) + "x" + (screen.height || 0),
+        session: sid,
+        user_agent: (navigator.userAgent || "").slice(0, 300),
+      };
+      fetch(ANALYTICS.url.replace(/\/$/, "") + "/rest/v1/visits", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ANALYTICS.anonKey,
+          Authorization: "Bearer " + ANALYTICS.anonKey,
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(function () { /* mai bloccare l'app per il tracker */ });
+    } catch (e) { /* mai bloccare l'app per il tracker */ }
+  }
+
   // ---- Stato ----
   const STORAGE_KEY = "takethatchat_default_v1";
   function demoMessages() {
@@ -851,4 +893,6 @@
   const saved = loadSaved();
   if (saved) applyState(saved);
   else renderAll();
+
+  trackVisit();
 })();
