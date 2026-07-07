@@ -68,6 +68,9 @@ out|😍🔥</textarea>
           <input type="file" id="audio" accept="audio/*" />
         </label>
         <p class="hint">La canzone <strong>non</strong> parte all'inizio: entra quando compare il messaggio <code>audio|</code> e suona da lì fino alla fine.</p>
+        <label style="margin-top:12px">Inizio canzone (<code>mm:ss</code> o secondi) — es. il ritornello
+          <input type="text" id="songstart" value="0:00" />
+        </label>
         <div class="bpm-row" style="margin-top:12px">
           <label>BPM
             <input type="number" id="bpm" value="120" min="40" max="220" />
@@ -130,11 +133,18 @@ out|😍🔥</textarea>
       }).filter(Boolean);
     }
 
+    function parseTime(str) {
+      str = String(str || "").trim(); if (!str) return 0;
+      if (str.indexOf(":") >= 0) { const a = str.split(":"); return (+a[0] || 0) * 60 + (+a[1] || 0); }
+      return +str || 0;
+    }
+
     function opts() {
       return {
         bpm: Math.max(40, Math.min(220, +$("bpm").value || 120)),
         bpermsg: Math.max(1, +$("bpermsg").value || 2),
         startbeats: Math.max(0, +$("startbeats").value || 0),
+        songStart: Math.max(0, parseTime($("songstart").value)),
         wallpaper: $("wallpaper").value,
         accent: $("accent").value,
         contact: $("contact").value || " ",
@@ -146,10 +156,14 @@ out|😍🔥</textarea>
     // indice del primo messaggio audio (dove entra la musica) e relativi tempi
     function music(msgs, o) {
       const idx = msgs.findIndex((m) => m.type === "audio");
-      if (idx < 0) return { idx: -1, start: null, dur: null };
+      if (idx < 0) return { idx: -1, start: null, dur: null, offset: 0 };
       const start = revealTime(idx, o);
-      const dur = audioBuffer ? audioBuffer.duration : null;
-      return { idx, start, dur };
+      let offset = 0, dur = null;
+      if (audioBuffer) {
+        offset = Math.max(0, Math.min(o.songStart || 0, Math.max(0, audioBuffer.duration - 0.5)));
+        dur = Math.max(0.5, audioBuffer.duration - offset); // durata suonata (dal ritornello alla fine)
+      }
+      return { idx, start, dur, offset };
     }
 
     function totalDuration(msgs, o) {
@@ -220,18 +234,27 @@ out|😍🔥</textarea>
       const rise = last >= 0 ? (met[last].h + GAP) * (1 - p) : 0;
 
       let y = BOTTOM - 16 + rise;
+
+      // "sta scrivendo…" per il prossimo messaggio di testo IN ARRIVO
+      const nextIdx = vis;
+      if (nextIdx < msgs.length && msgs[nextIdx].type === "text" && msgs[nextIdx].side === "in") {
+        const rt = revealTime(nextIdx, o);
+        const interval = (o.bpermsg * 60 / o.bpm);
+        const lead = Math.min(0.9, interval * 0.7);
+        if (t >= rt - lead && t < rt) { y -= 58; drawTyping(20, y, t); y -= GAP; }
+      }
+
       for (let i = last; i >= 0; i--) {
         const m = msgs[i], mm = met[i]; y -= mm.h;
         const isNew = i === last; const alpha = isNew ? p : 1; const yy = isNew ? y + 16 * (1 - p) : y;
         if (m.type === "audio") {
           // progresso della "riproduzione" = avanzamento del brano dopo la sua comparsa
-          let prog = 0, playing = false;
+          let prog = 0, playing = false; const eff = mus.dur != null ? mus.dur : 20;
           if (i === mus.idx && mus.start != null) {
             playing = t >= mus.start;
-            const d = mus.dur != null ? mus.dur : 20;
-            prog = Math.max(0, Math.min(1, (t - mus.start) / d));
+            prog = Math.max(0, Math.min(1, (t - mus.start) / eff));
           }
-          drawAudio(m, mm, yy, o, alpha, playing, prog, i);
+          drawAudio(m, mm, yy, o, alpha, playing, prog, i, eff);
         } else {
           drawText(m, mm, yy, o, alpha);
         }
@@ -255,7 +278,21 @@ out|😍🔥</textarea>
       ctx.restore();
     }
 
-    function drawAudio(m, mm, y, o, alpha, playing, prog, seed) {
+    function drawTyping(x, y, t) {
+      const w = 116, h = 52;
+      ctx.save();
+      ctx.fillStyle = "#1f2c33"; ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, w, h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      for (let i = 0; i < 3; i++) {
+        const ph = Math.sin(t * 6 - i * 0.9);
+        ctx.globalAlpha = 0.45 + 0.45 * (ph * 0.5 + 0.5);
+        ctx.fillStyle = "#cbd5df";
+        ctx.beginPath(); ctx.arc(x + 32 + i * 26, y + h / 2 - ph * 4, 6, 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawAudio(m, mm, y, o, alpha, playing, prog, seed, effDur) {
       ctx.save(); ctx.globalAlpha = alpha;
       const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
       ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
@@ -278,7 +315,7 @@ out|😍🔥</textarea>
       // durata / etichetta
       ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = "22px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
       let lab = m.label;
-      if (audioBuffer) { const d = audioBuffer.duration; lab = playing ? mmss(prog * d) + " / " + mmss(d) : mmss(d); }
+      if (audioBuffer) { lab = playing ? mmss(prog * effDur) + " / " + mmss(effDur) : mmss(effDur); }
       else if (!lab) lab = "🎵";
       ctx.fillText(lab, x + mm.w - 18, cy + 26);
       ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.font = "22px system-ui"; ctx.fillText("🎤", x + mm.w - 18, cy - 22);
@@ -322,7 +359,8 @@ out|😍🔥</textarea>
         src = ac.createBufferSource(); src.buffer = audioBuffer;
         const dest = audible ? ac.destination : ac.createMediaStreamDestination();
         src.connect(dest);
-        src.start(ac.currentTime + Math.max(0, mus.start)); // la musica entra col messaggio audio
+        // la musica entra col messaggio audio, partendo dall'offset scelto (es. il ritornello)
+        src.start(ac.currentTime + Math.max(0, mus.start), Math.max(0, mus.offset || 0));
         run._audioTrack = audible ? null : dest.stream.getAudioTracks()[0];
       } else { run._audioTrack = null; }
       let done = false;
@@ -389,7 +427,7 @@ out|😍🔥</textarea>
 
     function setStatus(s) { $("status").textContent = s; }
     function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts()); }
-    ["script", "contact", "bpm", "bpermsg", "startbeats", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
+    ["script", "contact", "bpm", "bpermsg", "startbeats", "songstart", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
     redraw();
   })();
   </script>
