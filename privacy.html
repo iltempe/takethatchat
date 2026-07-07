@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy — TakeThatChat</title>
+  <meta name="description" content="Informativa privacy di TakeThatChat: cosa viene trattato, dove, e come gestire il consenso agli analytics." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .doc { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
+    .doc .back { display: inline-block; margin-bottom: 18px; color: var(--accent); text-decoration: none; font-weight: 600; font-size: 14px; }
+    .doc h1 { font-size: 26px; margin: 6px 0 4px; letter-spacing: -0.4px; }
+    .doc .updated { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+    .doc h2 { font-size: 16px; margin: 26px 0 8px; }
+    .doc p, .doc li { color: var(--text); font-size: 15px; line-height: 1.6; }
+    .doc .muted { color: var(--muted); }
+    .doc ul { padding-left: 20px; }
+    .doc li { margin-bottom: 6px; }
+    .doc a { color: var(--accent); }
+    .doc .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 16px 0; }
+    .doc code { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main class="doc">
+    <a class="back" href="./">← Torna a TakeThatChat</a>
+    <h1>Informativa sulla privacy</h1>
+    <p class="updated">Ultimo aggiornamento: 7 luglio 2026</p>
+
+    <p><strong>TakeThatChat</strong> è uno strumento satirico/parodia per creare screenshot e
+    video di <em>finte</em> conversazioni, per scherzare. Questa pagina spiega, in modo
+    semplice, quali dati vengono trattati quando usi l'app.</p>
+
+    <h2>1. I contenuti che crei restano sul tuo dispositivo</h2>
+    <p>I messaggi, i nomi, gli avatar, le foto e i video che aggiungi vengono elaborati
+    <strong>interamente nel tuo browser</strong>. Le immagini e i video esportati (PNG, JPG, MP4)
+    sono generati in locale e <strong>non vengono caricati su alcun server</strong>: restano sul
+    tuo dispositivo.</p>
+
+    <h2>2. Cosa viene salvato nel tuo browser</h2>
+    <p>Per farti comodo, l'app usa la memoria locale del browser (<code>localStorage</code>) per:</p>
+    <ul>
+      <li>la <strong>conversazione predefinita</strong> che scegli di salvare (messaggi e impostazioni);</li>
+      <li>la tua <strong>scelta sul consenso</strong> agli analytics (accettato/rifiutato).</li>
+    </ul>
+    <p class="muted">Questi dati restano solo sul tuo dispositivo, non vengono inviati a noi né a terzi.
+    Puoi cancellarli svuotando i dati del sito dal tuo browser.</p>
+
+    <h2>3. Statistiche di visita (Google Analytics 4)</h2>
+    <p>Per capire quante persone visitano il sito usiamo <strong>Google Analytics 4</strong>, un
+    servizio di Google. Viene attivato <strong>solo se dai il consenso</strong> tramite il banner:
+    se rifiuti (o non scegli), nessuno script di Google viene caricato.</p>
+    <div class="card">
+      <p style="margin:0 0 6px"><strong>Quando è attivo, Google Analytics può raccogliere:</strong></p>
+      <ul style="margin:0">
+        <li>dati aggregati sulle visite (pagine viste, provenienza, lingua, tipo di dispositivo, Paese approssimativo);</li>
+        <li>un identificatore tramite cookie e l'indirizzo IP (<strong>anonimizzato</strong>).</li>
+      </ul>
+    </div>
+    <p>Titolare del trattamento per questi dati è <strong>Google</strong>, secondo la sua
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">informativa privacy</a>.
+    Base giuridica: il tuo <strong>consenso</strong> (art. 6(1)(a) GDPR), che puoi revocare in qualsiasi momento.</p>
+
+    <h2>4. Gestisci o revoca il consenso</h2>
+    <p>Puoi cambiare idea quando vuoi. Con il pulsante qui sotto azzeri la scelta: alla prossima
+    apertura dell'app ricomparirà il banner per accettare o rifiutare.</p>
+    <p>
+      <button id="revoke" class="primary-btn" type="button">Revoca / reimposta il consenso</button>
+      <span id="revoke-msg" class="muted" style="margin-left:10px"></span>
+    </p>
+
+    <h2>5. Cosa NON facciamo</h2>
+    <ul>
+      <li>Non vendiamo dati.</li>
+      <li>Non usiamo i tuoi messaggi o le tue immagini per profilarti.</li>
+      <li>Non raccogliamo dati di analytics prima del tuo consenso.</li>
+    </ul>
+
+    <h2>6. Contatti</h2>
+    <p>Il progetto è di <a href="https://github.com/iltempe" target="_blank" rel="noopener noreferrer">@iltempe</a>.
+    Per domande o richieste (inclusi i diritti previsti dal GDPR: accesso, cancellazione, ecc.)
+    puoi scrivere tramite il <a href="https://github.com/iltempe/takethatchat" target="_blank" rel="noopener noreferrer">repository su GitHub</a>.</p>
+
+    <p class="muted" style="margin-top:28px">TakeThatChat è uno strumento per scherzare: usalo con
+    responsabilità e non per ingannare, diffamare o truffare.</p>
+  </main>
+
+  <script>
+    (function () {
+      var btn = document.getElementById("revoke");
+      var msg = document.getElementById("revoke-msg");
+      btn.addEventListener("click", function () {
+        try { localStorage.removeItem("ttc_analytics_consent"); } catch (e) {}
+        // se GA è già stato caricato in questa scheda, disattiva l'invio dati
+        try { window["ga-disable-G-M2RHEEM793"] = true; } catch (e) {}
+        msg.textContent = "Fatto: il consenso è stato azzerato. Riapri l'app per rivedere il banner.";
+      });
+    })();
+  </script>
+</body>
+</html>

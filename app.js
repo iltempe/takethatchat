@@ -11,7 +11,7 @@
   // nessuno script di Google caricato, nessun tracciamento.
   // GA viene caricato SOLO dopo il consenso esplicito dell'utente.
   // ============================================================
-  const GA_ID = ""; // es. "G-XXXXXXXXXX"
+  const GA_ID = "G-M2RHEEM793"; // Measurement ID GA4
   const CONSENT_KEY = "ttc_analytics_consent";
 
   function loadGA() {
