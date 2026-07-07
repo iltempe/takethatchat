@@ -50,6 +50,8 @@ body.light {
 }
 .brand h1 { font-size: 18px; margin: 0; letter-spacing: -0.3px; }
 .tagline { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.songwriter-link { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; background: var(--panel-2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+.songwriter-link:hover { filter: brightness(1.15); text-decoration: none; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
 .primary-btn {

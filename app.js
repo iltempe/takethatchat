@@ -13,6 +13,7 @@
   const T = {
     it: {
       tagline: "Finte chat per scherzare — non prendetele sul serio 😉",
+      songwriter_link: "🎬 Songwriter Chat — video per musicisti (beta)",
       theme_title: "Cambia tema editor",
       format_title: "Formato file",
       ratio_title: "Proporzioni",
@@ -95,6 +96,7 @@
     },
     en: {
       tagline: "Fake chats for fun — don't take them seriously 😉",
+      songwriter_link: "🎬 Songwriter Chat — videos for musicians (beta)",
       theme_title: "Toggle editor theme",
       format_title: "File format",
       ratio_title: "Aspect ratio",

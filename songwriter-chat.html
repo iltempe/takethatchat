@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Songwriter Chat — TakeThatChat</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <style>
+    :root { --bg:#0f1720; --panel:#1a2532; --panel2:#223041; --text:#e6edf3; --muted:#8fa3b8; --border:#2d3d4f; --accent:#128a5a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    header h1 { font-size:17px; margin:0; }
+    header .tag { font-size:12px; color:var(--muted); }
+    header .proto { margin-left:auto; font-size:11px; color:#000; background:#e0b13c; padding:3px 8px; border-radius:20px; font-weight:700; }
+    header .back { color:var(--accent); text-decoration:none; font-weight:600; font-size:14px; }
+    .wrap { display:grid; grid-template-columns: minmax(320px,1fr) minmax(300px,380px); gap:22px; max-width:1100px; margin:0 auto; padding:22px; align-items:start; }
+    @media (max-width:820px){ .wrap{ grid-template-columns:1fr; } .preview{ order:-1; } }
+    .panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:16px; }
+    .panel h2 { font-size:13px; margin:0 0 12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+    label { display:block; font-size:13px; color:var(--muted); margin-bottom:12px; }
+    input, textarea, select { width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:9px; padding:9px 11px; font-size:15px; margin-top:6px; font-family:inherit; }
+    textarea { min-height:170px; resize:vertical; line-height:1.5; }
+    code { background:var(--panel2); padding:1px 6px; border-radius:5px; font-size:12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > label { flex:1; min-width:90px; }
+    button { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+    button.ghost { background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+    button:disabled { opacity:.55; cursor:default; }
+    .btns { display:flex; gap:10px; flex-wrap:wrap; }
+    canvas { width:100%; max-width:340px; border-radius:24px; box-shadow:0 20px 50px rgba(0,0,0,.45); display:block; margin:0 auto; background:#000; }
+    .hint { font-size:12px; color:var(--muted); line-height:1.5; }
+    .status { font-size:13px; color:var(--muted); min-height:18px; margin-top:8px; text-align:center; }
+    .bpm-row { display:flex; gap:10px; align-items:flex-end; }
+    .bpm-row label { flex:1; margin:0; }
+    #tap { white-space:nowrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="./" title="Torna a TakeThatChat">←</a>
+    <span style="font-size:24px">🎬</span>
+    <div>
+      <h1>Songwriter Chat</h1>
+      <div class="tag">Trasforma le tue canzoni in video-chat per TikTok · la musica parte col messaggio audio</div>
+    </div>
+    <span class="proto">BETA</span>
+  </header>
+
+  <div class="wrap">
+    <section class="editor">
+      <div class="panel">
+        <h2>Conversazione</h2>
+        <label>Una riga per messaggio
+          <textarea id="script">in|Ho scritto una canzone nuova 🎶
+out|Fammela sentire 👀
+in|Aspetta che ti mando un vocale…
+audio|La mia canzone
+out|😍🔥</textarea>
+        </label>
+        <p class="hint">Prefissi: <code>in|</code> loro · <code>out|</code> tu · <code>audio|</code> nota vocale = <strong>qui parte la musica</strong> (puoi scrivere un'etichetta dopo la barra). Per un vocale in arrivo usa <code>audio in|</code>.</p>
+        <label style="margin-top:12px">Nome contatto
+          <input type="text" id="contact" value="Il Producer 🎧" maxlength="40" />
+        </label>
+      </div>
+
+      <div class="panel">
+        <h2>Musica &amp; ritmo</h2>
+        <label>File audio (la tua canzone)
+          <input type="file" id="audio" accept="audio/*" />
+        </label>
+        <p class="hint">La canzone <strong>non</strong> parte all'inizio: entra quando compare il messaggio <code>audio|</code> e suona da lì fino alla fine.</p>
+        <label style="margin-top:12px">Inizio canzone (<code>mm:ss</code> o secondi) — es. il ritornello
+          <input type="text" id="songstart" value="0:00" />
+        </label>
+        <div class="bpm-row" style="margin-top:12px">
+          <label>BPM
+            <input type="number" id="bpm" value="120" min="40" max="220" />
+          </label>
+          <button id="tap" class="ghost" type="button" title="Batti il tempo a ritmo di musica">👆 Batti il tempo</button>
+        </div>
+        <div class="row">
+          <label>Beat per messaggio
+            <input type="number" id="bpermsg" value="2" min="1" max="16" step="1" />
+          </label>
+          <label>Ritardo iniziale (beat)
+            <input type="number" id="startbeats" value="2" min="0" max="64" step="1" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Aspetto</h2>
+        <div class="row">
+          <label>Sfondo
+            <input type="color" id="wallpaper" value="#0b141a" />
+          </label>
+          <label>Accento
+            <input type="color" id="accent" value="#128a5a" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="preview">
+      <canvas id="canvas" width="720" height="1280"></canvas>
+      <div class="btns" style="justify-content:center; margin-top:14px">
+        <button id="play" class="ghost" type="button">▶ Anteprima</button>
+        <button id="export" type="button">🎬 Esporta video</button>
+      </div>
+      <p class="status" id="status"></p>
+      <p class="hint" style="text-align:center; margin-top:4px">Prototipo: l'export include l'<strong>audio</strong>. Verifica il risultato sul tuo dispositivo.</p>
+    </section>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const canvas = $("canvas"), ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    let audioBuffer = null;
+
+    // ---------- parsing conversazione ----------
+    function parseMessages() {
+      return $("script").value.split("\n").map((raw) => {
+        const line = raw.trim();
+        if (!line) return null;
+        const sep = line.indexOf("|");
+        let tag = "in", text = line;
+        if (sep >= 0) { tag = line.slice(0, sep).trim().toLowerCase(); text = line.slice(sep + 1); }
+        const isAudio = /audio|voice|vocale|song|canzone|🎵/.test(tag);
+        const side = /\b(out|io|me)\b/.test(tag) ? "out" : (/\bin\b|loro|them/.test(tag) ? "in" : (isAudio ? "out" : "in"));
+        return isAudio ? { type: "audio", side, label: text.trim() } : { type: "text", side, text };
+      }).filter(Boolean);
+    }
+
+    function parseTime(str) {
+      str = String(str || "").trim(); if (!str) return 0;
+      if (str.indexOf(":") >= 0) { const a = str.split(":"); return (+a[0] || 0) * 60 + (+a[1] || 0); }
+      return +str || 0;
+    }
+
+    function opts() {
+      return {
+        bpm: Math.max(40, Math.min(220, +$("bpm").value || 120)),
+        bpermsg: Math.max(1, +$("bpermsg").value || 2),
+        startbeats: Math.max(0, +$("startbeats").value || 0),
+        songStart: Math.max(0, parseTime($("songstart").value)),
+        wallpaper: $("wallpaper").value,
+        accent: $("accent").value,
+        contact: $("contact").value || " ",
+      };
+    }
+
+    function revealTime(i, o) { return (o.startbeats + i * o.bpermsg) * (60 / o.bpm); }
+
+    // indice del primo messaggio audio (dove entra la musica) e relativi tempi
+    function music(msgs, o) {
+      const idx = msgs.findIndex((m) => m.type === "audio");
+      if (idx < 0) return { idx: -1, start: null, dur: null, offset: 0 };
+      const start = revealTime(idx, o);
+      let offset = 0, dur = null;
+      if (audioBuffer) {
+        offset = Math.max(0, Math.min(o.songStart || 0, Math.max(0, audioBuffer.duration - 0.5)));
+        dur = Math.max(0.5, audioBuffer.duration - offset); // durata suonata (dal ritornello alla fine)
+      }
+      return { idx, start, dur, offset };
+    }
+
+    function totalDuration(msgs, o) {
+      const mus = music(msgs, o);
+      if (mus.idx >= 0 && mus.dur != null) return mus.start + mus.dur;
+      const lastReveal = msgs.length ? revealTime(msgs.length - 1, o) + 1.8 : 2;
+      return lastReveal;
+    }
+
+    // ---------- disegno ----------
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+      else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+    }
+    const FONT = 30, LINE = 40, PAD = 18, GAP = 14;
+    function wrap(text, maxW) {
+      ctx.font = FONT + "px system-ui, sans-serif";
+      const words = String(text).split(/\s+/); const lines = []; let cur = "";
+      for (const w of words) { const test = cur ? cur + " " + w : w; if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test; }
+      if (cur) lines.push(cur); return lines.length ? lines : [""];
+    }
+    function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+    function waveform(seed, n) {
+      let s = 2166136261 ^ seed;
+      const a = [];
+      for (let i = 0; i < n; i++) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; a.push(0.28 + (s % 72) / 100); }
+      return a;
+    }
+    function metrics(m, o) {
+      if (m.type === "audio") return { audio: true, w: 430, h: 96 };
+      const maxTextW = W * 0.72 - PAD * 2;
+      const lines = wrap(m.text, maxTextW);
+      let tw = 0; ctx.font = FONT + "px system-ui, sans-serif";
+      for (const l of lines) tw = Math.max(tw, ctx.measureText(l).width);
+      return { lines, w: Math.min(W * 0.72, tw + PAD * 2), h: PAD * 2 + lines.length * LINE };
+    }
+
+    function drawChrome(o) {
+      ctx.fillStyle = shade(o.accent, -0.18); ctx.fillRect(0, 0, W, 54);
+      ctx.fillStyle = "#fff"; ctx.font = "600 26px system-ui"; ctx.textBaseline = "middle";
+      ctx.textAlign = "left"; ctx.fillText("21:47", 22, 28);
+      ctx.textAlign = "center"; ctx.fillText("TakeThatChat", W / 2, 28);
+      ctx.textAlign = "right"; ctx.fillText("82% ▰", W - 20, 28);
+      const hy = 54, hh = 96;
+      ctx.fillStyle = o.accent; ctx.fillRect(0, hy, W, hh);
+      ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.beginPath(); ctx.arc(70, hy + hh / 2, 34, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = "700 30px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText((o.contact.trim()[0] || "?").toUpperCase(), 70, hy + hh / 2 + 1);
+      ctx.textAlign = "left"; ctx.font = "600 32px system-ui"; ctx.fillText(o.contact, 122, hy + hh / 2 - 12);
+      ctx.font = "24px system-ui"; ctx.globalAlpha = .85; ctx.fillText("online", 122, hy + hh / 2 + 20); ctx.globalAlpha = 1;
+      ctx.fillStyle = shade(o.wallpaper, .06); ctx.fillRect(0, H - 90, W, 90);
+      ctx.fillStyle = "rgba(255,255,255,.10)"; rr(70, H - 68, W - 200, 48, 24); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.45)"; ctx.font = "26px system-ui"; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+      ctx.fillText("Messaggio", 92, H - 44);
+      ctx.fillStyle = o.accent; ctx.beginPath(); ctx.arc(W - 52, H - 44, 30, 0, 7); ctx.fill();
+    }
+
+    const TOP = 150, BOTTOM = H - 90, ANIM = 0.28;
+    function draw(msgs, t, o) {
+      ctx.fillStyle = o.wallpaper; ctx.fillRect(0, 0, W, H);
+      const mus = music(msgs, o);
+      let vis = 0;
+      for (let i = 0; i < msgs.length; i++) { if (t >= revealTime(i, o)) vis = i + 1; else break; }
+      const last = vis - 1;
+      let p = 1; if (last >= 0) p = Math.max(0, Math.min(1, (t - revealTime(last, o)) / ANIM));
+      const met = []; for (let i = 0; i < vis; i++) met.push(metrics(msgs[i], o));
+      const rise = last >= 0 ? (met[last].h + GAP) * (1 - p) : 0;
+
+      let y = BOTTOM - 16 + rise;
+
+      // "sta scrivendo…" per il prossimo messaggio di testo IN ARRIVO
+      const nextIdx = vis;
+      if (nextIdx < msgs.length && msgs[nextIdx].type === "text" && msgs[nextIdx].side === "in") {
+        const rt = revealTime(nextIdx, o);
+        const interval = (o.bpermsg * 60 / o.bpm);
+        const lead = Math.min(0.9, interval * 0.7);
+        if (t >= rt - lead && t < rt) { y -= 58; drawTyping(20, y, t); y -= GAP; }
+      }
+
+      for (let i = last; i >= 0; i--) {
+        const m = msgs[i], mm = met[i]; y -= mm.h;
+        const isNew = i === last; const alpha = isNew ? p : 1; const yy = isNew ? y + 16 * (1 - p) : y;
+        if (m.type === "audio") {
+          // progresso della "riproduzione" = avanzamento del brano dopo la sua comparsa
+          let prog = 0, playing = false; const eff = mus.dur != null ? mus.dur : 20;
+          if (i === mus.idx && mus.start != null) {
+            playing = t >= mus.start;
+            prog = Math.max(0, Math.min(1, (t - mus.start) / eff));
+          }
+          drawAudio(m, mm, yy, o, alpha, playing, prog, i, eff);
+        } else {
+          drawText(m, mm, yy, o, alpha);
+        }
+        y -= GAP; if (y < TOP - 40) break;
+      }
+      const dur = totalDuration(msgs, o); const prog = dur ? Math.max(0, Math.min(1, t / dur)) : 0;
+      drawChrome(o);
+      ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(0, 0, W, 6);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W * prog, 6);
+    }
+
+    function bubbleBg(out) { return out ? "#0f4a3b" : "#1f2c33"; }
+
+    function drawText(m, mm, y, o, alpha) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
+      ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, mm.w, mm.h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#e6edf3"; ctx.font = FONT + "px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      for (let li = 0; li < mm.lines.length; li++) ctx.fillText(mm.lines[li], x + PAD, y + PAD + li * LINE + 2);
+      ctx.restore();
+    }
+
+    function drawTyping(x, y, t) {
+      const w = 116, h = 52;
+      ctx.save();
+      ctx.fillStyle = "#1f2c33"; ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, w, h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      for (let i = 0; i < 3; i++) {
+        const ph = Math.sin(t * 6 - i * 0.9);
+        ctx.globalAlpha = 0.45 + 0.45 * (ph * 0.5 + 0.5);
+        ctx.fillStyle = "#cbd5df";
+        ctx.beginPath(); ctx.arc(x + 32 + i * 26, y + h / 2 - ph * 4, 6, 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawAudio(m, mm, y, o, alpha, playing, prog, seed, effDur) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
+      ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, mm.w, mm.h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      // cerchio play/pausa
+      const cx = x + 40, cy = y + mm.h / 2;
+      ctx.fillStyle = o.accent; ctx.beginPath(); ctx.arc(cx, cy, 26, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff";
+      if (playing) { ctx.fillRect(cx - 8, cy - 11, 6, 22); ctx.fillRect(cx + 2, cy - 11, 6, 22); }
+      else { ctx.beginPath(); ctx.moveTo(cx - 7, cy - 11); ctx.lineTo(cx - 7, cy + 11); ctx.lineTo(cx + 12, cy); ctx.closePath(); ctx.fill(); }
+      // waveform
+      const bars = waveform(seed * 2654435761 >>> 0 || 7, 22);
+      const wx = x + 80, ww = mm.w - 80 - 90, cyw = cy;
+      const played = Math.round(prog * bars.length);
+      for (let i = 0; i < bars.length; i++) {
+        const bh = bars[i] * 34; const bxx = wx + i * (ww / bars.length);
+        ctx.fillStyle = i < played ? "#cfe8dc" : "rgba(255,255,255,.35)";
+        ctx.fillRect(bxx, cyw - bh / 2, 4, bh);
+      }
+      // durata / etichetta
+      ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = "22px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      let lab = m.label;
+      if (audioBuffer) { lab = playing ? mmss(prog * effDur) + " / " + mmss(effDur) : mmss(effDur); }
+      else if (!lab) lab = "🎵";
+      ctx.fillText(lab, x + mm.w - 18, cy + 26);
+      ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.font = "22px system-ui"; ctx.fillText("🎤", x + mm.w - 18, cy - 22);
+      ctx.restore();
+    }
+
+    function shade(hex, amt) {
+      const n = parseInt(hex.slice(1), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const f = amt < 0 ? (1 + amt) : 1, add = amt > 0 ? amt * 255 : 0;
+      r = Math.min(255, Math.round(r * f + add)); g = Math.min(255, Math.round(g * f + add)); b = Math.min(255, Math.round(b * f + add));
+      return "rgb(" + r + "," + g + "," + b + ")";
+    }
+
+    // ---------- audio ----------
+    $("audio").addEventListener("change", async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      setStatus("Carico l'audio…");
+      try {
+        const buf = await file.arrayBuffer();
+        const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC();
+        audioBuffer = await ac.decodeAudioData(buf); ac.close();
+        setStatus("Audio pronto: " + audioBuffer.duration.toFixed(1) + "s (entra col messaggio audio)");
+        redraw();
+      } catch (err) { audioBuffer = null; setStatus("Audio non leggibile: " + err.message); }
+    });
+
+    // ---------- tap tempo ----------
+    let taps = [];
+    $("tap").addEventListener("click", () => {
+      const now = performance.now(); taps = taps.filter((x) => now - x < 3000); taps.push(now);
+      if (taps.length >= 2) { let sum = 0; for (let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1]; $("bpm").value = Math.max(40, Math.min(220, Math.round(60000 / (sum / (taps.length - 1))))); redraw(); }
+    });
+
+    // ---------- clock condiviso (video + audio) ----------
+    function run(msgs, o, audible, onEnd) {
+      const dur = totalDuration(msgs, o);
+      const mus = music(msgs, o);
+      let ac = null, src = null;
+      if (audioBuffer && mus.idx >= 0) {
+        const AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
+        src = ac.createBufferSource(); src.buffer = audioBuffer;
+        const dest = audible ? ac.destination : ac.createMediaStreamDestination();
+        src.connect(dest);
+        // la musica entra col messaggio audio, partendo dall'offset scelto (es. il ritornello)
+        src.start(ac.currentTime + Math.max(0, mus.start), Math.max(0, mus.offset || 0));
+        run._audioTrack = audible ? null : dest.stream.getAudioTracks()[0];
+      } else { run._audioTrack = null; }
+      let done = false;
+      function cleanup() {
+        if (done) return; done = true;
+        if (run._raf) cancelAnimationFrame(run._raf);
+        if (src) try { src.stop(); } catch (e) {}
+        if (ac && ac.state !== "closed") try { ac.close(); } catch (e) {}
+      }
+      run._stop = cleanup;
+      const t0 = performance.now();
+      function loop() {
+        const t = (performance.now() - t0) / 1000;
+        draw(msgs, t, o);
+        if (t >= dur) { cleanup(); onEnd && onEnd(); return; }
+        run._raf = requestAnimationFrame(loop);
+      }
+      run._raf = requestAnimationFrame(loop);
+      return dur;
+    }
+
+    $("play").addEventListener("click", () => {
+      if (run._stop) run._stop();
+      setStatus("Anteprima in corso…");
+      run(parseMessages(), opts(), true, () => setStatus("Anteprima finita."));
+    });
+
+    // ---------- export ----------
+    function pickMime() {
+      const c = ["video/mp4;codecs=h264,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+      for (const m of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+      return "";
+    }
+    $("export").addEventListener("click", async () => {
+      if (run._stop) run._stop();
+      const btn = $("export"); const mime = pickMime();
+      if (!mime) { setStatus("Il browser non supporta la registrazione video."); return; }
+      const msgs = parseMessages(), o = opts();
+      btn.disabled = true;
+      try {
+        const vstream = canvas.captureStream(30);
+        // avvia il clock (crea l'eventuale traccia audio schedulata)
+        const dur = run(msgs, o, false, null);
+        const tracks = [vstream.getVideoTracks()[0]];
+        if (run._audioTrack) tracks.push(run._audioTrack);
+        const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 8000000, audioBitsPerSecond: 160000 });
+        const chunks = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+        const stopped = new Promise((r) => (rec.onstop = r));
+        setStatus("🔴 Registro… (" + dur.toFixed(1) + "s)");
+        rec.start();
+        await new Promise((res) => setTimeout(res, dur * 1000 + 250));
+        rec.stop(); await stopped; if (run._stop) run._stop();
+        const ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
+        const blob = new Blob(chunks, { type: mime });
+        if (blob.size < 1024) throw new Error("video vuoto");
+        const url = URL.createObjectURL(blob); const a = document.createElement("a");
+        a.download = "takethatchat_studio_9x16." + ext; a.href = url; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+        const withAudio = audioBuffer && music(msgs, o).idx >= 0;
+        setStatus("✓ Esportato (" + ext.toUpperCase() + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (withAudio ? " — musica dal messaggio audio" : " — nessun audio"));
+      } catch (err) { setStatus("Export non riuscito: " + err.message); }
+      finally { btn.disabled = false; }
+    });
+
+    function setStatus(s) { $("status").textContent = s; }
+    function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts()); }
+    ["script", "contact", "bpm", "bpermsg", "startbeats", "songstart", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
+    redraw();
+  })();
+  </script>
+</body>
+</html>

@@ -53,6 +53,8 @@ body.light {
 }
 .brand h1 { font-size: 18px; margin: 0; letter-spacing: -0.3px; }
 .tagline { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.songwriter-link { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; background: var(--panel-2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+.songwriter-link:hover { filter: brightness(1.15); text-decoration: none; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
 .primary-btn {
@@ -438,6 +440,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       <div>
         <h1>TakeThatChat</h1>
         <p class="tagline" data-i18n="tagline">Finte chat per scherzare — non prendetele sul serio 😉</p>
+        <a class="songwriter-link" href="https://iltempe.github.io/takethatchat/songwriter-chat.html" data-i18n="songwriter_link">🎬 Songwriter Chat — video per musicisti (beta)</a>
       </div>
     </div>
     <div class="topbar-actions">
@@ -2560,6 +2563,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   const T = {
     it: {
       tagline: "Finte chat per scherzare — non prendetele sul serio 😉",
+      songwriter_link: "🎬 Songwriter Chat — video per musicisti (beta)",
       theme_title: "Cambia tema editor",
       format_title: "Formato file",
       ratio_title: "Proporzioni",
@@ -2642,6 +2646,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     },
     en: {
       tagline: "Fake chats for fun — don't take them seriously 😉",
+      songwriter_link: "🎬 Songwriter Chat — videos for musicians (beta)",
       theme_title: "Toggle editor theme",
       format_title: "File format",
       ratio_title: "Aspect ratio",
