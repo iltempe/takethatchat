@@ -17,6 +17,8 @@ vengono caricate da nessuna parte**.
 - 👤 Nome contatto, stato ("online", "sta scrivendo…", "ultimo accesso…") e avatar
 - 📶 Barra di stato: ora, operatore, percentuale batteria
 - 🎨 Tema chiaro/scuro, sfondi diversi e colore d'accento personalizzabile
+- 🌐 **Interfaccia bilingue**: italiano di default, inglese con un clic (la scelta
+  viene ricordata)
 - 💾 **Conversazione predefinita**: salva messaggi e impostazioni come default —
   vengono ricaricati automaticamente le volte successive (nel tuo browser); un
   clic per ripristinare la demo

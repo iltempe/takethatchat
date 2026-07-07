@@ -6,6 +6,195 @@
   "use strict";
 
   // ============================================================
+  // Internazionalizzazione (i18n): italiano di default, inglese opzionale.
+  // ============================================================
+  const LANG_KEY = "ttc_lang";
+  let LANG = "it";
+  const T = {
+    it: {
+      tagline: "Finte chat per scherzare — non prendetele sul serio 😉",
+      theme_title: "Cambia tema editor",
+      format_title: "Formato file",
+      ratio_title: "Proporzioni",
+      ratio_916: "9:16 (TikTok/storie)",
+      ratio_natural: "Naturale",
+      btn_export: "📸 Esporta",
+      btn_video: "🎬 Video",
+      video_title: "Esporta come video animato (max 17s)",
+      panel_convo: "Conversazione",
+      btn_save_default: "💾 Salva come predefinita",
+      btn_reset_demo: "↺ Ripristina demo",
+      convo_hint: "La conversazione predefinita (messaggi e impostazioni) viene ricaricata automaticamente le prossime volte. È salvata solo in questo browser.",
+      panel_header: "Intestazione",
+      lbl_contact_name: "Nome contatto",
+      lbl_contact_status: "Stato (sotto il nome)",
+      lbl_avatar: "Avatar",
+      btn_avatar_clear: "Rimuovi",
+      panel_statusbar: "Barra di stato del telefono",
+      lbl_time: "Ora",
+      lbl_battery: "Batteria %",
+      panel_appearance: "Aspetto",
+      lbl_theme: "Tema chat",
+      opt_light: "Chiaro",
+      opt_dark: "Scuro",
+      lbl_wallpaper: "Sfondo",
+      opt_doodle: "Doodle",
+      opt_plain: "Tinta unita",
+      opt_sunset: "Tramonto",
+      lbl_accent: "Accento",
+      panel_messages: "Messaggi",
+      reorder_hint: "Riordina con ↑↓ o trascina",
+      type_title: "Tipo di messaggio",
+      type_text: "💬 Testo",
+      type_voice: "🎤 Vocale",
+      type_audio: "🎵 Audio",
+      type_photo: "🖼️ Foto",
+      type_video: "🎬 Video",
+      side_them: "Loro",
+      side_me: "Io",
+      panel_video_opts: "Opzioni video",
+      lbl_media_play: "Riproduzione vocali/audio/video (secondi)",
+      lbl_progress_bar: "Barra di avanzamento in alto",
+      progress_bar_hint: "(consigliata: rende il video più fluido su TikTok)",
+      video_opts_hint: "Nel video, quando compare un vocale, un audio o un video si simula la pressione del <strong>play ▶</strong> e resta in riproduzione per questi secondi (con avanzamento).",
+      disclaimer: "⚠️ Strumento satirico/parodia. Le conversazioni generate sono <strong>finte</strong>. Non usarlo per truffe, diffamazione o per far credere che siano reali. Usalo con testa.",
+      phone_input: "Messaggio",
+      preview_hint: "Questa è l'anteprima. Premi <strong>Esporta</strong> per l'immagine (PNG/JPG, anche 9:16) o <strong>🎬 Video</strong> per l'animazione.",
+      consent_text: 'Usiamo <strong>Google Analytics</strong> per contare le visite in forma aggregata. Puoi accettare o rifiutare — l\'app funziona comunque. <a href="https://iltempe.github.io/takethatchat/privacy.html" target="_blank" rel="noopener noreferrer">Maggiori informazioni</a>.',
+      consent_reject: "Rifiuta",
+      consent_accept: "Accetta",
+      credits: '<span class="credits-heart">💬</span> Creato da <a href="https://github.com/iltempe" target="_blank" rel="noopener noreferrer">@iltempe</a> · <a href="https://github.com/iltempe/takethatchat" target="_blank" rel="noopener noreferrer">codice su GitHub</a> · <a href="https://iltempe.github.io/takethatchat/privacy.html">Privacy</a>',
+      ph_text: "Scrivi un messaggio e premi Invio…",
+      btn_add: "Aggiungi",
+      ph_voice: "Durata (es. 0:08)",
+      btn_add_voice: "Aggiungi 🎤",
+      ph_audio: "Durata (es. 2:34)",
+      btn_add_audio: "Aggiungi 🎵",
+      ph_photo: "Didascalia (opzionale)",
+      btn_photo: "Scegli foto 🖼️",
+      ph_video: "Didascalia (opzionale)",
+      btn_video_sel: "Scegli video 🎬",
+      voice: "Vocale",
+      audio: "Audio",
+      caption_ph: "Didascalia (opz.)",
+      duration_ph: "durata",
+      tick_read: "✓✓ blu",
+      generating: "Genero…",
+      recording: "Registro…",
+      saved: "Salvata",
+      err_export: "Ops, export non riuscito: ",
+      err_export_video: "Ops, export video non riuscito: ",
+      err_video_empty: "il video è risultato vuoto. Riprova; se sei su Safari/iPhone, prova a disattivare la barra di avanzamento o aggiorna iOS.",
+      err_no_encoder: "Il browser non ha un encoder video utilizzabile.",
+      err_no_video_support: "Il tuo browser non supporta l'export video. Usa Chrome, Edge o Safari recenti.",
+      err_no_format: "Nessun formato video supportato dal browser.",
+      err_no_messages: "Aggiungi almeno un messaggio.",
+      note_webm: "Video salvato in .webm (verticale 9:16).\n\nPer TikTok è meglio l'MP4: esporta da Chrome/Edge o Safari recenti, dove viene generato automaticamente in MP4 a frame rate costante.",
+      err_save_quota: "Non riesco a salvare la conversazione predefinita.\nProbabilmente le immagini (avatar/foto) sono troppo grandi per lo spazio del browser: prova con immagini più piccole.",
+      err_save_generic: "Non riesco a salvare la conversazione predefinita.\n",
+    },
+    en: {
+      tagline: "Fake chats for fun — don't take them seriously 😉",
+      theme_title: "Toggle editor theme",
+      format_title: "File format",
+      ratio_title: "Aspect ratio",
+      ratio_916: "9:16 (TikTok/stories)",
+      ratio_natural: "Natural",
+      btn_export: "📸 Export",
+      btn_video: "🎬 Video",
+      video_title: "Export as animated video (max 17s)",
+      panel_convo: "Conversation",
+      btn_save_default: "💾 Save as default",
+      btn_reset_demo: "↺ Reset demo",
+      convo_hint: "The default conversation (messages and settings) is reloaded automatically next time. It's saved only in this browser.",
+      panel_header: "Header",
+      lbl_contact_name: "Contact name",
+      lbl_contact_status: "Status (under the name)",
+      lbl_avatar: "Avatar",
+      btn_avatar_clear: "Remove",
+      panel_statusbar: "Phone status bar",
+      lbl_time: "Time",
+      lbl_battery: "Battery %",
+      panel_appearance: "Appearance",
+      lbl_theme: "Chat theme",
+      opt_light: "Light",
+      opt_dark: "Dark",
+      lbl_wallpaper: "Wallpaper",
+      opt_doodle: "Doodle",
+      opt_plain: "Solid",
+      opt_sunset: "Sunset",
+      lbl_accent: "Accent",
+      panel_messages: "Messages",
+      reorder_hint: "Reorder with ↑↓ or drag",
+      type_title: "Message type",
+      type_text: "💬 Text",
+      type_voice: "🎤 Voice",
+      type_audio: "🎵 Audio",
+      type_photo: "🖼️ Photo",
+      type_video: "🎬 Video",
+      side_them: "Them",
+      side_me: "Me",
+      panel_video_opts: "Video options",
+      lbl_media_play: "Voice/audio/video playback (seconds)",
+      lbl_progress_bar: "Progress bar at the top",
+      progress_bar_hint: "(recommended: makes the video smoother on TikTok)",
+      video_opts_hint: "In the video, when a voice note, audio or video appears, the <strong>play ▶</strong> is simulated and it keeps playing for these seconds (with progress).",
+      disclaimer: "⚠️ Satire/parody tool. The conversations are <strong>fake</strong>. Don't use it for scams, defamation, or to make them look real. Use responsibly.",
+      phone_input: "Message",
+      preview_hint: "This is the preview. Press <strong>Export</strong> for the image (PNG/JPG, also 9:16) or <strong>🎬 Video</strong> for the animation.",
+      consent_text: 'We use <strong>Google Analytics</strong> to count visits in aggregate. You can accept or decline — the app works either way. <a href="https://iltempe.github.io/takethatchat/privacy.html" target="_blank" rel="noopener noreferrer">Learn more</a>.',
+      consent_reject: "Decline",
+      consent_accept: "Accept",
+      credits: '<span class="credits-heart">💬</span> Created by <a href="https://github.com/iltempe" target="_blank" rel="noopener noreferrer">@iltempe</a> · <a href="https://github.com/iltempe/takethatchat" target="_blank" rel="noopener noreferrer">code on GitHub</a> · <a href="https://iltempe.github.io/takethatchat/privacy.html">Privacy</a>',
+      ph_text: "Type a message and press Enter…",
+      btn_add: "Add",
+      ph_voice: "Duration (e.g. 0:08)",
+      btn_add_voice: "Add 🎤",
+      ph_audio: "Duration (e.g. 2:34)",
+      btn_add_audio: "Add 🎵",
+      ph_photo: "Caption (optional)",
+      btn_photo: "Choose photo 🖼️",
+      ph_video: "Caption (optional)",
+      btn_video_sel: "Choose video 🎬",
+      voice: "Voice",
+      audio: "Audio",
+      caption_ph: "Caption (opt.)",
+      duration_ph: "duration",
+      tick_read: "✓✓ blue",
+      generating: "Generating…",
+      recording: "Recording…",
+      saved: "Saved",
+      err_export: "Oops, export failed: ",
+      err_export_video: "Oops, video export failed: ",
+      err_video_empty: "the video came out empty. Try again; on Safari/iPhone try turning off the progress bar or updating iOS.",
+      err_no_encoder: "The browser has no usable video encoder.",
+      err_no_video_support: "Your browser doesn't support video export. Use a recent Chrome, Edge or Safari.",
+      err_no_format: "No video format supported by the browser.",
+      err_no_messages: "Add at least one message.",
+      note_webm: "Video saved as .webm (vertical 9:16).\n\nFor TikTok, MP4 is better: export from a recent Chrome/Edge or Safari, where it's generated as MP4 at a constant frame rate.",
+      err_save_quota: "Can't save the default conversation.\nThe images (avatar/photos) are probably too big for the browser's storage: try smaller images.",
+      err_save_generic: "Can't save the default conversation.\n",
+    },
+  };
+  function t(k) {
+    const v = T[LANG] && T[LANG][k];
+    return v != null ? v : (T.it[k] != null ? T.it[k] : k);
+  }
+  function applyLang(lang) {
+    LANG = lang === "en" ? "en" : "it";
+    try { localStorage.setItem(LANG_KEY, LANG); } catch (e) { /* ignora */ }
+    document.documentElement.lang = LANG;
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n")); });
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.getAttribute("data-i18n-html")); });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.getAttribute("data-i18n-ph")); });
+    document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.getAttribute("data-i18n-title")); });
+    const lb = document.getElementById("btn-lang");
+    if (lb) lb.textContent = LANG === "it" ? "EN" : "IT";
+    if (typeof updateAddPlaceholder === "function") updateAddPlaceholder();
+    if (typeof renderEditorList === "function") renderEditorList();
+  }
+
+  // ============================================================
   // Analytics: Google Analytics 4 con banner di consenso (richiesto in UE).
   // Inserisci il tuo Measurement ID qui sotto. Finché è vuoto: nessun banner,
   // nessuno script di Google caricato, nessun tracciamento.
@@ -236,16 +425,16 @@
       if (m.type === "voice" || m.type === "audio") {
         middle =
           `<span class="type-tag">${TYPE_LABEL[m.type]}</span>` +
-          `<input class="dur" type="text" value="${esc(m.duration || DEFAULT_DUR[m.type] || "")}" placeholder="durata" title="Durata" />` +
-          `<span class="type-name">${m.type === "audio" ? "Audio" : "Vocale"}</span>`;
+          `<input class="dur" type="text" value="${esc(m.duration || DEFAULT_DUR[m.type] || "")}" placeholder="${t("duration_ph")}" title="${t("duration_ph")}" />` +
+          `<span class="type-name">${m.type === "audio" ? t("audio") : t("voice")}</span>`;
       } else if (m.type === "photo" || m.type === "video") {
         const thumb = m.media
-          ? `<img class="thumb" src="${m.media}" alt="" title="Clicca per cambiare immagine" />`
-          : `<button type="button" class="thumb thumb-empty" title="Scegli immagine">＋</button>`;
+          ? `<img class="thumb" src="${m.media}" alt="" />`
+          : `<button type="button" class="thumb thumb-empty">＋</button>`;
         middle =
           `<span class="type-tag">${TYPE_LABEL[m.type]}</span>` +
           thumb +
-          `<input class="txt cap" type="text" value="${esc(m.text || "")}" placeholder="Didascalia (opz.)" />` +
+          `<input class="txt cap" type="text" value="${esc(m.text || "")}" placeholder="${t("caption_ph")}" />` +
           (m.type === "video"
             ? `<input class="dur" type="text" value="${esc(m.duration || DEFAULT_DUR.video)}" placeholder="0:15" title="Durata" />`
             : "") +
@@ -260,14 +449,14 @@
           <button class="mv down" type="button" title="Sposta giù" aria-label="Sposta giù">▼</button>
         </span>
         <span class="drag" title="Trascina">⠿</span>
-        <button class="who ${m.side}" type="button" title="Cambia mittente">${m.side === "out" ? "Io" : "Loro"}</button>
+        <button class="who ${m.side}" type="button">${m.side === "out" ? t("side_me") : t("side_them")}</button>
         ${middle}
-        <input class="txt-time" type="text" value="${esc(m.time || "")}" title="Ora" />
-        <select class="tick-sel" title="Spunte">
+        <input class="txt-time" type="text" value="${esc(m.time || "")}" title="${t("lbl_time")}" />
+        <select class="tick-sel">
           <option value="none">–</option>
           <option value="sent">✓</option>
           <option value="delivered">✓✓</option>
-          <option value="read">✓✓ blu</option>
+          <option value="read">${t("tick_read")}</option>
         </select>
         <button class="del" type="button" title="Elimina">✕</button>`;
 
@@ -436,15 +625,10 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
       const old = btn.textContent;
-      btn.textContent = "✓ Salvata";
+      btn.textContent = "✓ " + t("saved");
       setTimeout(() => { btn.textContent = old; }, 1500);
     } catch (e) {
-      alert(
-        "Non riesco a salvare la conversazione predefinita.\n" +
-        (String(e).match(/quota|exceeded/i)
-          ? "Probabilmente le immagini (avatar/foto) sono troppo grandi per lo spazio del browser: prova con immagini più piccole."
-          : e.message)
-      );
+      alert(String(e).match(/quota|exceeded/i) ? t("err_save_quota") : (t("err_save_generic") + e.message));
     }
   }
 
@@ -489,7 +673,7 @@
   async function exportImage() {
     const btn = $("btn-export");
     const old = btn.textContent;
-    btn.textContent = "⏳ Genero…";
+    btn.textContent = "⏳ " + t("generating");
     btn.disabled = true;
     try {
       const format = $("export-format").value; // png | jpg
@@ -511,7 +695,7 @@
       link.href = canvas.toDataURL(mime, isJpg ? 0.92 : undefined);
       link.click();
     } catch (err) {
-      alert("Ops, export non riuscito: " + err.message);
+      alert(t("err_export") + err.message);
     } finally {
       btn.textContent = old;
       btn.disabled = false;
@@ -664,12 +848,12 @@
     const canRecord = !!(window.MediaRecorder && HTMLCanvasElement.prototype.captureStream);
     const webcodecs = hasWebCodecs();
     if (!webcodecs && !canRecord) {
-      alert("Il tuo browser non supporta l'export video. Usa Chrome, Edge o Safari recenti.");
+      alert(t("err_no_video_support"));
       return;
     }
     const mime = canRecord ? pickVideoMime() : "";
-    if (!webcodecs && !mime) { alert("Nessun formato video supportato dal browser."); return; }
-    if (!state.messages.length) { alert("Aggiungi almeno un messaggio."); return; }
+    if (!webcodecs && !mime) { alert(t("err_no_format")); return; }
+    if (!state.messages.length) { alert(t("err_no_messages")); return; }
 
     const old = btn.textContent;
     btn.disabled = true;
@@ -786,15 +970,15 @@
       // Fallback: MediaRecorder (campiona il canvas a fps fisso). Serve anche
       // quando WebCodecs c'è ma non produce un file valido (capita su alcuni Safari).
       if (!blob || blob.size < 1024) {
-        if (!mime) throw new Error("Il browser non ha un encoder video utilizzabile.");
-        btn.textContent = "🔴 Registro…";
+        if (!mime) throw new Error(t("err_no_encoder"));
+        btn.textContent = "🔴 " + t("recording");
         blob = await recordWithMediaRecorder(paint, total, W, H, mime);
         ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
       }
 
       // Non scaricare MAI un file vuoto/corrotto (era la causa del file illeggibile).
       if (!blob || blob.size < 1024) {
-        throw new Error("il video è risultato vuoto. Riprova; se sei su Safari/iPhone, prova a disattivare la barra di avanzamento o aggiorna iOS.");
+        throw new Error(t("err_video_empty"));
       }
 
       const name = ($("contact-name").value || "chat").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 24);
@@ -805,15 +989,11 @@
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 8000);
       if (ext === "webm") {
-        setTimeout(() => alert(
-          "Video salvato in .webm (verticale 9:16).\n\n" +
-          "Per TikTok è meglio l'MP4: esporta da Chrome/Edge o Safari recenti, " +
-          "dove viene generato automaticamente in MP4 a frame rate costante."
-        ), 300);
+        setTimeout(() => alert(t("note_webm")), 300);
       }
     } catch (err) {
       chatBox.innerHTML = savedHTML;
-      alert("Ops, export video non riuscito: " + err.message);
+      alert(t("err_export_video") + err.message);
     } finally {
       btn.textContent = old;
       btn.disabled = false;
@@ -827,11 +1007,11 @@
     const input = $("new-msg-text");
     const btn = $("add-msg-btn");
     const map = {
-      text: ["Scrivi un messaggio e premi Invio…", "Aggiungi"],
-      voice: ["Durata (es. 0:08)", "Aggiungi 🎤"],
-      audio: ["Durata (es. 2:34)", "Aggiungi 🎵"],
-      photo: ["Didascalia (opzionale)", "Scegli foto 🖼️"],
-      video: ["Didascalia (opzionale)", "Scegli video 🎬"],
+      text: [t("ph_text"), t("btn_add")],
+      voice: [t("ph_voice"), t("btn_add_voice")],
+      audio: [t("ph_audio"), t("btn_add_audio")],
+      photo: [t("ph_photo"), t("btn_photo")],
+      video: [t("ph_video"), t("btn_video_sel")],
     };
     input.placeholder = map[type][0];
     btn.textContent = map[type][1];
@@ -878,6 +1058,7 @@
     $("btn-video").addEventListener("click", exportVideo);
     $("save-default").addEventListener("click", saveDefault);
     $("reset-demo").addEventListener("click", resetDemo);
+    $("btn-lang").addEventListener("click", () => applyLang(LANG === "it" ? "en" : "it"));
     $("btn-theme").addEventListener("click", () => document.body.classList.toggle("light"));
   }
 
@@ -894,6 +1075,11 @@
   const saved = loadSaved();
   if (saved) applyState(saved);
   else renderAll();
+
+  // lingua: italiano di default, oppure la scelta salvata
+  let initLang = "it";
+  try { const s = localStorage.getItem(LANG_KEY); if (s === "en" || s === "it") initLang = s; } catch (e) { /* ignora */ }
+  applyLang(initLang);
 
   initAnalytics();
 })();

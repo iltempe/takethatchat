@@ -14,21 +14,22 @@
       <span class="brand-logo">💬</span>
       <div>
         <h1>TakeThatChat</h1>
-        <p class="tagline">Finte chat per scherzare — non prendetele sul serio 😉</p>
+        <p class="tagline" data-i18n="tagline">Finte chat per scherzare — non prendetele sul serio 😉</p>
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="btn-theme" class="ghost-btn" title="Cambia tema editor">🌓</button>
-      <select id="export-format" class="export-sel" title="Formato file">
+      <button id="btn-lang" class="ghost-btn" title="Language / Lingua">EN</button>
+      <button id="btn-theme" class="ghost-btn" data-i18n-title="theme_title" title="Cambia tema editor">🌓</button>
+      <select id="export-format" class="export-sel" data-i18n-title="format_title" title="Formato file">
         <option value="png">PNG</option>
         <option value="jpg">JPG</option>
       </select>
-      <select id="export-ratio" class="export-sel" title="Proporzioni">
-        <option value="9x16" selected>9:16 (TikTok/storie)</option>
-        <option value="natural">Naturale</option>
+      <select id="export-ratio" class="export-sel" data-i18n-title="ratio_title" title="Proporzioni">
+        <option value="9x16" selected data-i18n="ratio_916">9:16 (TikTok/storie)</option>
+        <option value="natural" data-i18n="ratio_natural">Naturale</option>
       </select>
-      <button id="btn-export" class="primary-btn">📸 Esporta</button>
-      <button id="btn-video" class="primary-btn video-btn" title="Esporta come video animato (max 17s)">🎬 Video</button>
+      <button id="btn-export" class="primary-btn" data-i18n="btn_export">📸 Esporta</button>
+      <button id="btn-video" class="primary-btn video-btn" data-i18n="btn_video" data-i18n-title="video_title" title="Esporta come video animato (max 17s)">🎬 Video</button>
     </div>
   </header>
 
@@ -36,59 +37,59 @@
     <!-- ============ EDITOR ============ -->
     <section class="editor" aria-label="Editor">
       <div class="panel convo-actions">
-        <h2>Conversazione</h2>
+        <h2 data-i18n="panel_convo">Conversazione</h2>
         <div class="row">
-          <button id="save-default" class="ghost-btn small" type="button">💾 Salva come predefinita</button>
-          <button id="reset-demo" class="ghost-btn small" type="button">↺ Ripristina demo</button>
+          <button id="save-default" class="ghost-btn small" type="button" data-i18n="btn_save_default">💾 Salva come predefinita</button>
+          <button id="reset-demo" class="ghost-btn small" type="button" data-i18n="btn_reset_demo">↺ Ripristina demo</button>
         </div>
-        <p class="hint" style="margin-top:8px; line-height:1.5">La conversazione predefinita (messaggi e impostazioni) viene ricaricata automaticamente le prossime volte. È salvata solo in questo browser.</p>
+        <p class="hint" style="margin-top:8px; line-height:1.5" data-i18n="convo_hint">La conversazione predefinita (messaggi e impostazioni) viene ricaricata automaticamente le prossime volte. È salvata solo in questo browser.</p>
       </div>
 
       <div class="panel">
-        <h2>Intestazione</h2>
-        <label>Nome contatto
+        <h2 data-i18n="panel_header">Intestazione</h2>
+        <label><span data-i18n="lbl_contact_name">Nome contatto</span>
           <input type="text" id="contact-name" value="Mamma ❤️" maxlength="40" />
         </label>
-        <label>Stato (sotto il nome)
+        <label><span data-i18n="lbl_contact_status">Stato (sotto il nome)</span>
           <input type="text" id="contact-status" value="online" maxlength="40" />
         </label>
         <div class="row">
-          <label class="grow">Avatar
+          <label class="grow"><span data-i18n="lbl_avatar">Avatar</span>
             <input type="file" id="avatar-file" accept="image/*" />
           </label>
-          <button id="avatar-clear" class="ghost-btn small" type="button">Rimuovi</button>
+          <button id="avatar-clear" class="ghost-btn small" type="button" data-i18n="btn_avatar_clear">Rimuovi</button>
         </div>
       </div>
 
       <div class="panel">
-        <h2>Barra di stato del telefono</h2>
+        <h2 data-i18n="panel_statusbar">Barra di stato del telefono</h2>
         <div class="row">
-          <label>Ora
+          <label><span data-i18n="lbl_time">Ora</span>
             <input type="text" id="phone-time" value="21:47" maxlength="8" />
           </label>
-          <label>Batteria %
+          <label><span data-i18n="lbl_battery">Batteria %</span>
             <input type="number" id="phone-battery" value="82" min="0" max="100" />
           </label>
         </div>
       </div>
 
       <div class="panel">
-        <h2>Aspetto</h2>
+        <h2 data-i18n="panel_appearance">Aspetto</h2>
         <div class="row">
-          <label>Tema chat
+          <label><span data-i18n="lbl_theme">Tema chat</span>
             <select id="chat-theme">
-              <option value="light">Chiaro</option>
-              <option value="dark">Scuro</option>
+              <option value="light" data-i18n="opt_light">Chiaro</option>
+              <option value="dark" data-i18n="opt_dark">Scuro</option>
             </select>
           </label>
-          <label>Sfondo
+          <label><span data-i18n="lbl_wallpaper">Sfondo</span>
             <select id="chat-wallpaper">
-              <option value="doodle">Doodle</option>
-              <option value="plain">Tinta unita</option>
-              <option value="sunset">Tramonto</option>
+              <option value="doodle" data-i18n="opt_doodle">Doodle</option>
+              <option value="plain" data-i18n="opt_plain">Tinta unita</option>
+              <option value="sunset" data-i18n="opt_sunset">Tramonto</option>
             </select>
           </label>
-          <label>Accento
+          <label><span data-i18n="lbl_accent">Accento</span>
             <input type="color" id="accent-color" value="#128a5a" />
           </label>
         </div>
@@ -96,21 +97,21 @@
 
       <div class="panel">
         <div class="panel-head">
-          <h2>Messaggi</h2>
-          <span class="hint">Riordina con ↑↓ o trascina</span>
+          <h2 data-i18n="panel_messages">Messaggi</h2>
+          <span class="hint" data-i18n="reorder_hint">Riordina con ↑↓ o trascina</span>
         </div>
         <ul id="msg-list" class="msg-editor-list"></ul>
         <div class="add-msg">
-          <select id="new-msg-type" class="type-sel" title="Tipo di messaggio">
-            <option value="text">💬 Testo</option>
-            <option value="voice">🎤 Vocale</option>
-            <option value="audio">🎵 Audio</option>
-            <option value="photo">🖼️ Foto</option>
-            <option value="video">🎬 Video</option>
+          <select id="new-msg-type" class="type-sel" data-i18n-title="type_title" title="Tipo di messaggio">
+            <option value="text" data-i18n="type_text">💬 Testo</option>
+            <option value="voice" data-i18n="type_voice">🎤 Vocale</option>
+            <option value="audio" data-i18n="type_audio">🎵 Audio</option>
+            <option value="photo" data-i18n="type_photo">🖼️ Foto</option>
+            <option value="video" data-i18n="type_video">🎬 Video</option>
           </select>
           <div class="side-toggle" role="group" aria-label="Chi scrive">
-            <button type="button" class="side-btn active" data-side="in">Loro</button>
-            <button type="button" class="side-btn" data-side="out">Io</button>
+            <button type="button" class="side-btn active" data-side="in" data-i18n="side_them">Loro</button>
+            <button type="button" class="side-btn" data-side="out" data-i18n="side_me">Io</button>
           </div>
           <input type="text" id="new-msg-text" placeholder="Scrivi un messaggio e premi Invio…" />
           <button id="add-msg-btn" class="primary-btn" type="button">Aggiungi</button>
@@ -119,20 +120,20 @@
       </div>
 
       <div class="panel">
-        <h2>Opzioni video</h2>
+        <h2 data-i18n="panel_video_opts">Opzioni video</h2>
         <div class="row">
-          <label>Riproduzione vocali/audio/video (secondi)
+          <label><span data-i18n="lbl_media_play">Riproduzione vocali/audio/video (secondi)</span>
             <input type="number" id="media-play-secs" value="4" min="1" max="15" step="1" />
           </label>
         </div>
         <label class="check">
           <input type="checkbox" id="video-progress-bar" checked />
-          Barra di avanzamento in alto <span class="hint">(consigliata: rende il video più fluido su TikTok)</span>
+          <span><span data-i18n="lbl_progress_bar">Barra di avanzamento in alto</span> <span class="hint" data-i18n="progress_bar_hint">(consigliata: rende il video più fluido su TikTok)</span></span>
         </label>
-        <p class="hint" style="margin-top:8px; line-height:1.5">Nel video, quando compare un vocale, un audio o un video si simula la pressione del <strong>play ▶</strong> e resta in riproduzione per questi secondi (con avanzamento).</p>
+        <p class="hint" style="margin-top:8px; line-height:1.5" data-i18n-html="video_opts_hint">Nel video, quando compare un vocale, un audio o un video si simula la pressione del <strong>play ▶</strong> e resta in riproduzione per questi secondi (con avanzamento).</p>
       </div>
 
-      <p class="disclaimer">
+      <p class="disclaimer" data-i18n-html="disclaimer">
         ⚠️ Strumento satirico/parodia. Le conversazioni generate sono <strong>finte</strong>.
         Non usarlo per truffe, diffamazione o per far credere che siano reali. Usalo con testa.
       </p>
@@ -167,25 +168,25 @@
 
         <div class="chat-input">
           <span class="ci-emoji">☺</span>
-          <div class="ci-field">Messaggio</div>
+          <div class="ci-field" data-i18n="phone_input">Messaggio</div>
           <span class="ci-clip">📎</span>
           <span class="ci-cam">📷</span>
           <span class="ci-send" id="ci-send">🎤</span>
         </div>
       </div>
-      <p class="preview-hint">Questa è l'anteprima. Premi <strong>Esporta</strong> per l'immagine (PNG/JPG, anche 9:16) o <strong>🎬 Video</strong> per l'animazione.</p>
+      <p class="preview-hint" data-i18n-html="preview_hint">Questa è l'anteprima. Premi <strong>Esporta</strong> per l'immagine (PNG/JPG, anche 9:16) o <strong>🎬 Video</strong> per l'animazione.</p>
     </section>
   </main>
 
   <div id="consent" class="consent" hidden role="dialog" aria-label="Consenso analytics">
-    <span class="consent-text">Usiamo <strong>Google Analytics</strong> per contare le visite in forma aggregata. Puoi accettare o rifiutare — l'app funziona comunque. <a href="https://iltempe.github.io/takethatchat/privacy.html" target="_blank" rel="noopener noreferrer">Maggiori informazioni</a>.</span>
+    <span class="consent-text" data-i18n-html="consent_text">Usiamo <strong>Google Analytics</strong> per contare le visite in forma aggregata. Puoi accettare o rifiutare — l'app funziona comunque. <a href="https://iltempe.github.io/takethatchat/privacy.html" target="_blank" rel="noopener noreferrer">Maggiori informazioni</a>.</span>
     <span class="consent-btns">
-      <button id="consent-reject" class="ghost-btn small" type="button">Rifiuta</button>
-      <button id="consent-accept" class="primary-btn" type="button">Accetta</button>
+      <button id="consent-reject" class="ghost-btn small" type="button" data-i18n="consent_reject">Rifiuta</button>
+      <button id="consent-accept" class="primary-btn" type="button" data-i18n="consent_accept">Accetta</button>
     </span>
   </div>
 
-  <footer class="credits">
+  <footer class="credits" data-i18n-html="credits">
     <span class="credits-heart">💬</span>
     Creato da <a href="https://github.com/iltempe" target="_blank" rel="noopener noreferrer">@iltempe</a>
     · <a href="https://github.com/iltempe/takethatchat" target="_blank" rel="noopener noreferrer">codice su GitHub</a>
