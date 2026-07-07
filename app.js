@@ -201,7 +201,6 @@
 
   function renderStatusbar() {
     $("sb-time").textContent = $("phone-time").value || nowTime();
-    $("sb-carrier").textContent = $("phone-carrier").value;
     let b = parseInt($("phone-battery").value, 10);
     if (isNaN(b)) b = 100;
     b = Math.max(0, Math.min(100, b));
@@ -396,7 +395,7 @@
 
   // ---- Salvataggio conversazione predefinita (localStorage) ----
   const FIELD_IDS = [
-    "contact-name", "contact-status", "phone-time", "phone-carrier", "phone-battery",
+    "contact-name", "contact-status", "phone-time", "phone-battery",
     "chat-theme", "chat-wallpaper", "accent-color", "media-play-secs",
   ];
 
@@ -841,7 +840,7 @@
   // ---- Bind eventi ----
   function bind() {
     ["contact-name", "contact-status"].forEach((id) => $(id).addEventListener("input", renderHeader));
-    ["phone-time", "phone-carrier", "phone-battery"].forEach((id) => $(id).addEventListener("input", renderStatusbar));
+    ["phone-time", "phone-battery"].forEach((id) => $(id).addEventListener("input", renderStatusbar));
     ["chat-theme", "chat-wallpaper", "accent-color"].forEach((id) => $(id).addEventListener("input", renderAppearance));
 
     $("new-msg-type").addEventListener("change", updateAddPlaceholder);

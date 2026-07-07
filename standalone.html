@@ -357,7 +357,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   flex-wrap: wrap;
   z-index: 100;
 }
+.consent[hidden] { display: none; } /* l'attributo hidden deve vincere su display:flex */
 .consent-text { font-size: 13px; color: var(--muted); line-height: 1.5; flex: 1; min-width: 220px; }
+.consent-text a { color: var(--accent); }
 .consent-btns { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ---------- Crediti ---------- */
@@ -487,9 +489,6 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
           <label>Ora
             <input type="text" id="phone-time" value="21:47" maxlength="8" />
           </label>
-          <label>Operatore
-            <input type="text" id="phone-carrier" value="Fun Mobile" maxlength="16" />
-          </label>
           <label>Batteria %
             <input type="number" id="phone-battery" value="82" min="0" max="100" />
           </label>
@@ -567,7 +566,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
       <div class="phone" id="capture">
         <div class="statusbar">
           <span class="sb-time" id="sb-time">21:47</span>
-          <span class="sb-carrier" id="sb-carrier">Fun Mobile</span>
+          <span class="sb-carrier">TakeThatChat</span>
           <span class="sb-right">
             <span class="sb-signal">▂▄▆█</span>
             <span class="sb-wifi">✦</span>
@@ -602,7 +601,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   </main>
 
   <div id="consent" class="consent" hidden role="dialog" aria-label="Consenso analytics">
-    <span class="consent-text">Usiamo <strong>Google Analytics</strong> per contare le visite in forma aggregata. Puoi accettare o rifiutare — l'app funziona comunque.</span>
+    <span class="consent-text">Usiamo <strong>Google Analytics</strong> per contare le visite in forma aggregata. Puoi accettare o rifiutare — l'app funziona comunque. <a href="https://iltempe.github.io/takethatchat/privacy.html" target="_blank" rel="noopener noreferrer">Maggiori informazioni</a>.</span>
     <span class="consent-btns">
       <button id="consent-reject" class="ghost-btn small" type="button">Rifiuta</button>
       <button id="consent-accept" class="primary-btn" type="button">Accetta</button>
@@ -2748,7 +2747,6 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
   function renderStatusbar() {
     $("sb-time").textContent = $("phone-time").value || nowTime();
-    $("sb-carrier").textContent = $("phone-carrier").value;
     let b = parseInt($("phone-battery").value, 10);
     if (isNaN(b)) b = 100;
     b = Math.max(0, Math.min(100, b));
@@ -2943,7 +2941,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
   // ---- Salvataggio conversazione predefinita (localStorage) ----
   const FIELD_IDS = [
-    "contact-name", "contact-status", "phone-time", "phone-carrier", "phone-battery",
+    "contact-name", "contact-status", "phone-time", "phone-battery",
     "chat-theme", "chat-wallpaper", "accent-color", "media-play-secs",
   ];
 
@@ -3388,7 +3386,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   // ---- Bind eventi ----
   function bind() {
     ["contact-name", "contact-status"].forEach((id) => $(id).addEventListener("input", renderHeader));
-    ["phone-time", "phone-carrier", "phone-battery"].forEach((id) => $(id).addEventListener("input", renderStatusbar));
+    ["phone-time", "phone-battery"].forEach((id) => $(id).addEventListener("input", renderStatusbar));
     ["chat-theme", "chat-wallpaper", "accent-color"].forEach((id) => $(id).addEventListener("input", renderAppearance));
 
     $("new-msg-type").addEventListener("change", updateAddPlaceholder);

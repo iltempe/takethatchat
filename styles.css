@@ -354,7 +354,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
   flex-wrap: wrap;
   z-index: 100;
 }
+.consent[hidden] { display: none; } /* l'attributo hidden deve vincere su display:flex */
 .consent-text { font-size: 13px; color: var(--muted); line-height: 1.5; flex: 1; min-width: 220px; }
+.consent-text a { color: var(--accent); }
 .consent-btns { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ---------- Crediti ---------- */
