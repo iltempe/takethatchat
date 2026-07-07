@@ -1076,9 +1076,14 @@
   if (saved) applyState(saved);
   else renderAll();
 
-  // lingua: italiano di default, oppure la scelta salvata
-  let initLang = "it";
+  // lingua: prima la scelta salvata; al primo accesso si rileva dal browser
+  // (inglese se il browser è in inglese, altrimenti italiano come fallback)
+  let initLang = null;
   try { const s = localStorage.getItem(LANG_KEY); if (s === "en" || s === "it") initLang = s; } catch (e) { /* ignora */ }
+  if (!initLang) {
+    const nav = (navigator.language || navigator.userLanguage || "it").toLowerCase();
+    initLang = nav.indexOf("en") === 0 ? "en" : "it";
+  }
   applyLang(initLang);
 
   initAnalytics();
