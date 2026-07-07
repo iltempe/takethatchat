@@ -2523,10 +2523,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   "use strict";
 
   // ============================================================
-  // Tracker visite (analytics privata su Supabase).
+  // Tracker visite (analytics privata su Supabase) — privacy-minimal.
   // Riempi url e anonKey col tuo progetto: finché sono vuoti è disattivato.
-  // La chiave "anon" è pubblica per definizione; i dati restano privati grazie
-  // alle policy RLS (inserimento consentito, lettura no).
+  // NON raccoglie dati identificanti: niente user-agent, niente risoluzione,
+  // referrer ridotto al solo dominio, id di sessione EFFIMERO (sessionStorage,
+  // si azzera chiudendo la scheda). Nessun IP viene registrato lato client.
+  // La chiave "anon" è pubblica; i dati restano privati grazie a RLS (solo insert).
   // ============================================================
   const ANALYTICS = {
     url: "",      // es. "https://xxxx.supabase.co"
@@ -2536,19 +2538,21 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function trackVisit() {
     try {
       if (!ANALYTICS.url || !ANALYTICS.anonKey) return; // non configurato
+      // referrer: solo il dominio di provenienza, mai l'URL completo
+      let refHost = null;
+      try { if (document.referrer) refHost = new URL(document.referrer).hostname || null; } catch (e) { /* ignora */ }
+      // sessione effimera: distingue le visite senza tracciare l'utente nel tempo
       let sid = null;
-      try { sid = localStorage.getItem("ttc_sid"); } catch (e) { /* ignora */ }
+      try { sid = sessionStorage.getItem("ttc_sid"); } catch (e) { /* ignora */ }
       if (!sid) {
-        sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        try { localStorage.setItem("ttc_sid", sid); } catch (e) { /* ignora */ }
+        sid = Math.random().toString(36).slice(2);
+        try { sessionStorage.setItem("ttc_sid", sid); } catch (e) { /* ignora */ }
       }
       const body = {
         path: location.pathname,
-        referrer: document.referrer || null,
-        lang: navigator.language || null,
-        screen: (screen.width || 0) + "x" + (screen.height || 0),
+        referrer: refHost,
+        lang: (navigator.language || "").slice(0, 10) || null,
         session: sid,
-        user_agent: (navigator.userAgent || "").slice(0, 300),
       };
       fetch(ANALYTICS.url.replace(/\/$/, "") + "/rest/v1/visits", {
         method: "POST",

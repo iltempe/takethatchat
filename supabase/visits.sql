@@ -1,18 +1,18 @@
--- TakeThatChat — tracker visite (analytics privata)
+-- TakeThatChat — tracker visite (analytics privata, privacy-minimal)
 -- Esegui questo script nel SQL Editor del tuo progetto Supabase.
 -- I dati NON sono leggibili pubblicamente: gli utenti anonimi possono solo
 -- inserire una riga per visita; la lettura è riservata a te (dashboard/service role).
+-- Nessun dato identificante: solo pagina, dominio di provenienza, lingua e un
+-- id di sessione effimero (niente user-agent, niente risoluzione, niente IP).
 
 -- 1) Tabella delle visite
 create table if not exists public.visits (
   id          bigint generated always as identity primary key,
   created_at  timestamptz not null default now(),
-  path        text,
-  referrer    text,
-  lang        text,
-  screen      text,
-  session     text,
-  user_agent  text
+  path        text,       -- quale pagina
+  referrer    text,       -- solo il DOMINIO di provenienza (non l'URL completo)
+  lang        text,       -- lingua del browser (es. it-IT)
+  session     text        -- id di sessione effimero (non persistente)
 );
 
 -- 2) Row Level Security: attiva e consenti SOLO l'inserimento agli anonimi
