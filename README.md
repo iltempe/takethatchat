@@ -17,6 +17,9 @@ vengono caricate da nessuna parte**.
 - 👤 Nome contatto, stato ("online", "sta scrivendo…", "ultimo accesso…") e avatar
 - 📶 Barra di stato: ora, operatore, percentuale batteria
 - 🎨 Tema chiaro/scuro, sfondi diversi e colore d'accento personalizzabile
+- 💾 **Conversazione predefinita**: salva messaggi e impostazioni come default —
+  vengono ricaricati automaticamente le volte successive (nel tuo browser); un
+  clic per ripristinare la demo
 - 📱 **Ottimizzata per il mobile**: layout responsive, controlli grandi, riordino
   dei messaggi con pulsanti ↑↓ (oltre al drag & drop su desktop)
 - 📸 Esporta in **PNG o JPG**, proporzioni **9:16** (TikTok/storie) o **naturali**

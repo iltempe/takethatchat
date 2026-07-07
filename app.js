@@ -6,13 +6,18 @@
   "use strict";
 
   // ---- Stato ----
-  const state = {
-    messages: [
+  const STORAGE_KEY = "takethatchat_default_v1";
+  function demoMessages() {
+    return [
       { id: uid(), type: "text", side: "in", text: "Hai già cenato?", time: "21:45", tick: "read" },
       { id: uid(), type: "voice", side: "out", duration: "0:08", time: "21:46", tick: "read" },
       { id: uid(), type: "text", side: "in", text: "Ahah che scemo. Ti tengo la pasta 🍝", time: "21:47", tick: "delivered" },
-    ],
+    ];
+  }
+  const state = {
+    messages: demoMessages(),
     nextSide: "in",
+    avatar: null, // data URL dell'avatar (per poterlo salvare)
   };
 
   const TICKS = { none: "", sent: "✓", delivered: "✓✓", read: "✓✓" };
@@ -336,12 +341,80 @@
 
   // ---- Avatar ----
   function setAvatar(dataUrl) {
+    state.avatar = dataUrl || null;
     const el = $("ch-avatar");
     if (dataUrl) {
       el.innerHTML = `<img src="${dataUrl}" alt="" crossorigin="anonymous" />`;
     } else {
       el.innerHTML = `<span id="ch-avatar-initials">${initials($("contact-name").value)}</span>`;
     }
+  }
+
+  // ---- Salvataggio conversazione predefinita (localStorage) ----
+  const FIELD_IDS = [
+    "contact-name", "contact-status", "phone-time", "phone-carrier", "phone-battery",
+    "chat-theme", "chat-wallpaper", "accent-color", "media-play-secs",
+  ];
+
+  function snapshotFields() {
+    const o = {};
+    FIELD_IDS.forEach((id) => { const el = $(id); if (el) o[id] = el.value; });
+    return o;
+  }
+
+  function serializeState() {
+    return {
+      v: 1,
+      messages: state.messages,
+      avatar: state.avatar || null,
+      fields: snapshotFields(),
+      progressBar: $("video-progress-bar").checked,
+    };
+  }
+
+  function applyState(s) {
+    if (!s) return;
+    if (Array.isArray(s.messages)) {
+      state.messages = s.messages.map((m) => Object.assign({}, m, { id: m.id || uid() }));
+    }
+    if (s.fields) {
+      Object.keys(s.fields).forEach((id) => { const el = $(id); if (el) el.value = s.fields[id]; });
+    }
+    if (typeof s.progressBar === "boolean") $("video-progress-bar").checked = s.progressBar;
+    setAvatar(s.avatar || null);
+    renderAll();
+  }
+
+  // valori di partenza (demo), catturati prima di caricare un'eventuale predefinita
+  let DEFAULT_SNAPSHOT = null;
+
+  function saveDefault() {
+    const btn = $("save-default");
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
+      const old = btn.textContent;
+      btn.textContent = "✓ Salvata";
+      setTimeout(() => { btn.textContent = old; }, 1500);
+    } catch (e) {
+      alert(
+        "Non riesco a salvare la conversazione predefinita.\n" +
+        (String(e).match(/quota|exceeded/i)
+          ? "Probabilmente le immagini (avatar/foto) sono troppo grandi per lo spazio del browser: prova con immagini più piccole."
+          : e.message)
+      );
+    }
+  }
+
+  function resetDemo() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignora */ }
+    applyState(DEFAULT_SNAPSHOT || { messages: demoMessages(), fields: {}, avatar: null, progressBar: true });
+  }
+
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
   }
 
   // ---- Export immagine (PNG/JPG, naturale o 9:16) ----
@@ -716,11 +789,22 @@
 
     $("btn-export").addEventListener("click", exportImage);
     $("btn-video").addEventListener("click", exportVideo);
+    $("save-default").addEventListener("click", saveDefault);
+    $("reset-demo").addEventListener("click", resetDemo);
     $("btn-theme").addEventListener("click", () => document.body.classList.toggle("light"));
   }
 
   // ---- Init ----
   bind();
   updateAddPlaceholder();
-  renderAll();
+  // cattura i valori demo (dai default dell'HTML) prima di caricare una predefinita
+  DEFAULT_SNAPSHOT = {
+    messages: demoMessages(),
+    fields: snapshotFields(),
+    avatar: null,
+    progressBar: $("video-progress-bar").checked,
+  };
+  const saved = loadSaved();
+  if (saved) applyState(saved);
+  else renderAll();
 })();
