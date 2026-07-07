@@ -19,7 +19,8 @@
     .panel h2 { font-size:13px; margin:0 0 12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
     label { display:block; font-size:13px; color:var(--muted); margin-bottom:12px; }
     input, textarea, select { width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:9px; padding:9px 11px; font-size:15px; margin-top:6px; font-family:inherit; }
-    textarea { min-height:150px; resize:vertical; line-height:1.5; }
+    textarea { min-height:170px; resize:vertical; line-height:1.5; }
+    code { background:var(--panel2); padding:1px 6px; border-radius:5px; font-size:12px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; }
     .row > label { flex:1; min-width:90px; }
     button { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; }
@@ -39,7 +40,7 @@
     <span style="font-size:24px">🎬</span>
     <div>
       <h1>TakeThatChat Studio</h1>
-      <div class="tag">Renderer su canvas · audio nel video · sync al beat</div>
+      <div class="tag">Renderer su canvas · la musica parte col messaggio audio · sync al beat</div>
     </div>
     <span class="proto">PROTOTIPO</span>
   </header>
@@ -48,14 +49,15 @@
     <section class="editor">
       <div class="panel">
         <h2>Conversazione</h2>
-        <label>Una riga per messaggio — <code>in|</code> = loro, <code>out|</code> = tu
+        <label>Una riga per messaggio
           <textarea id="script">in|Ho scritto una canzone nuova 🎶
 out|Fammela sentire 👀
-in|Aspetta che parte il ritornello…
-out|🎧🔥
-in|(drop)</textarea>
+in|Aspetta che ti mando un vocale…
+audio|La mia canzone
+out|😍🔥</textarea>
         </label>
-        <label>Nome contatto
+        <p class="hint">Prefissi: <code>in|</code> loro · <code>out|</code> tu · <code>audio|</code> nota vocale = <strong>qui parte la musica</strong> (puoi scrivere un'etichetta dopo la barra). Per un vocale in arrivo usa <code>audio in|</code>.</p>
+        <label style="margin-top:12px">Nome contatto
           <input type="text" id="contact" value="Il Producer 🎧" maxlength="40" />
         </label>
       </div>
@@ -65,7 +67,8 @@ in|(drop)</textarea>
         <label>File audio (la tua canzone)
           <input type="file" id="audio" accept="audio/*" />
         </label>
-        <div class="bpm-row">
+        <p class="hint">La canzone <strong>non</strong> parte all'inizio: entra quando compare il messaggio <code>audio|</code> e suona da lì fino alla fine.</p>
+        <div class="bpm-row" style="margin-top:12px">
           <label>BPM
             <input type="number" id="bpm" value="120" min="40" max="220" />
           </label>
@@ -79,7 +82,6 @@ in|(drop)</textarea>
             <input type="number" id="startbeats" value="2" min="0" max="64" step="1" />
           </label>
         </div>
-        <p class="hint">I messaggi compaiono a tempo: uno ogni <em>beat per messaggio</em>. Metti il <strong>(drop)</strong> in modo che cada sul ritornello della tua canzone.</p>
       </div>
 
       <div class="panel">
@@ -120,13 +122,11 @@ in|(drop)</textarea>
         const line = raw.trim();
         if (!line) return null;
         const sep = line.indexOf("|");
-        let side = "in", text = line;
-        if (sep >= 0) {
-          const tag = line.slice(0, sep).trim().toLowerCase();
-          text = line.slice(sep + 1);
-          side = (tag === "out" || tag === "io" || tag === "me") ? "out" : "in";
-        }
-        return { side, text };
+        let tag = "in", text = line;
+        if (sep >= 0) { tag = line.slice(0, sep).trim().toLowerCase(); text = line.slice(sep + 1); }
+        const isAudio = /audio|voice|vocale|song|canzone|🎵/.test(tag);
+        const side = /\b(out|io|me)\b/.test(tag) ? "out" : (/\bin\b|loro|them/.test(tag) ? "in" : (isAudio ? "out" : "in"));
+        return isAudio ? { type: "audio", side, label: text.trim() } : { type: "text", side, text };
       }).filter(Boolean);
     }
 
@@ -141,65 +141,66 @@ in|(drop)</textarea>
       };
     }
 
-    function revealTime(i, o) {
-      const beat = 60 / o.bpm;
-      return (o.startbeats + i * o.bpermsg) * beat;
+    function revealTime(i, o) { return (o.startbeats + i * o.bpermsg) * (60 / o.bpm); }
+
+    // indice del primo messaggio audio (dove entra la musica) e relativi tempi
+    function music(msgs, o) {
+      const idx = msgs.findIndex((m) => m.type === "audio");
+      if (idx < 0) return { idx: -1, start: null, dur: null };
+      const start = revealTime(idx, o);
+      const dur = audioBuffer ? audioBuffer.duration : null;
+      return { idx, start, dur };
+    }
+
+    function totalDuration(msgs, o) {
+      const mus = music(msgs, o);
+      if (mus.idx >= 0 && mus.dur != null) return mus.start + mus.dur;
+      const lastReveal = msgs.length ? revealTime(msgs.length - 1, o) + 1.8 : 2;
+      return lastReveal;
     }
 
     // ---------- disegno ----------
     function rr(x, y, w, h, r) {
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
-      else {
-        ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-      }
+      else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     }
-
     const FONT = 30, LINE = 40, PAD = 18, GAP = 14;
     function wrap(text, maxW) {
       ctx.font = FONT + "px system-ui, sans-serif";
-      const words = String(text).split(/\s+/);
-      const lines = []; let cur = "";
-      for (const w of words) {
-        const test = cur ? cur + " " + w : w;
-        if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) lines.push(cur);
-      return lines.length ? lines : [""];
+      const words = String(text).split(/\s+/); const lines = []; let cur = "";
+      for (const w of words) { const test = cur ? cur + " " + w : w; if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test; }
+      if (cur) lines.push(cur); return lines.length ? lines : [""];
     }
-    function metrics(m) {
+    function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+    function waveform(seed, n) {
+      let s = 2166136261 ^ seed;
+      const a = [];
+      for (let i = 0; i < n; i++) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; a.push(0.28 + (s % 72) / 100); }
+      return a;
+    }
+    function metrics(m, o) {
+      if (m.type === "audio") return { audio: true, w: 430, h: 96 };
       const maxTextW = W * 0.72 - PAD * 2;
       const lines = wrap(m.text, maxTextW);
-      let tw = 0;
-      ctx.font = FONT + "px system-ui, sans-serif";
+      let tw = 0; ctx.font = FONT + "px system-ui, sans-serif";
       for (const l of lines) tw = Math.max(tw, ctx.measureText(l).width);
-      const w = Math.min(W * 0.72, tw + PAD * 2);
-      const h = PAD * 2 + lines.length * LINE;
-      return { lines, w, h };
+      return { lines, w: Math.min(W * 0.72, tw + PAD * 2), h: PAD * 2 + lines.length * LINE };
     }
 
     function drawChrome(o) {
-      // status bar
-      ctx.fillStyle = shade(o.accent, -0.18);
-      ctx.fillRect(0, 0, W, 54);
+      ctx.fillStyle = shade(o.accent, -0.18); ctx.fillRect(0, 0, W, 54);
       ctx.fillStyle = "#fff"; ctx.font = "600 26px system-ui"; ctx.textBaseline = "middle";
       ctx.textAlign = "left"; ctx.fillText("21:47", 22, 28);
       ctx.textAlign = "center"; ctx.fillText("TakeThatChat", W / 2, 28);
       ctx.textAlign = "right"; ctx.fillText("82% ▰", W - 20, 28);
-      // header
       const hy = 54, hh = 96;
       ctx.fillStyle = o.accent; ctx.fillRect(0, hy, W, hh);
-      ctx.fillStyle = "rgba(255,255,255,.28)";
-      ctx.beginPath(); ctx.arc(70, hy + hh / 2, 34, 0, 7); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.beginPath(); ctx.arc(70, hy + hh / 2, 34, 0, 7); ctx.fill();
       ctx.fillStyle = "#fff"; ctx.font = "700 30px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText((o.contact.trim()[0] || "?").toUpperCase(), 70, hy + hh / 2 + 1);
-      ctx.textAlign = "left"; ctx.font = "600 32px system-ui";
-      ctx.fillText(o.contact, 122, hy + hh / 2 - 12);
+      ctx.textAlign = "left"; ctx.font = "600 32px system-ui"; ctx.fillText(o.contact, 122, hy + hh / 2 - 12);
       ctx.font = "24px system-ui"; ctx.globalAlpha = .85; ctx.fillText("online", 122, hy + hh / 2 + 20); ctx.globalAlpha = 1;
-      // input bar
       ctx.fillStyle = shade(o.wallpaper, .06); ctx.fillRect(0, H - 90, W, 90);
       ctx.fillStyle = "rgba(255,255,255,.10)"; rr(70, H - 68, W - 200, 48, 24); ctx.fill();
       ctx.fillStyle = "rgba(255,255,255,.45)"; ctx.font = "26px system-ui"; ctx.textBaseline = "middle"; ctx.textAlign = "left";
@@ -209,67 +210,85 @@ in|(drop)</textarea>
 
     const TOP = 150, BOTTOM = H - 90, ANIM = 0.28;
     function draw(msgs, t, o) {
-      // sfondo
       ctx.fillStyle = o.wallpaper; ctx.fillRect(0, 0, W, H);
-      // messaggi visibili
+      const mus = music(msgs, o);
       let vis = 0;
       for (let i = 0; i < msgs.length; i++) { if (t >= revealTime(i, o)) vis = i + 1; else break; }
       const last = vis - 1;
-      let p = 1;
-      if (last >= 0) p = Math.max(0, Math.min(1, (t - revealTime(last, o)) / ANIM));
-
-      const met = [];
-      for (let i = 0; i < vis; i++) met.push(metrics(msgs[i]));
-      // altezza occupata dal messaggio in ingresso (per far salire lo stack)
+      let p = 1; if (last >= 0) p = Math.max(0, Math.min(1, (t - revealTime(last, o)) / ANIM));
+      const met = []; for (let i = 0; i < vis; i++) met.push(metrics(msgs[i], o));
       const rise = last >= 0 ? (met[last].h + GAP) * (1 - p) : 0;
 
-      // impilamento dal basso
       let y = BOTTOM - 16 + rise;
       for (let i = last; i >= 0; i--) {
-        const m = msgs[i], mm = met[i];
-        y -= mm.h;
-        const isNew = i === last;
-        const alpha = isNew ? p : 1;
-        const yy = isNew ? y + 16 * (1 - p) : y;
-        drawBubble(m, mm, yy, o, alpha);
-        y -= GAP;
-        if (y < TOP - 40) break;
+        const m = msgs[i], mm = met[i]; y -= mm.h;
+        const isNew = i === last; const alpha = isNew ? p : 1; const yy = isNew ? y + 16 * (1 - p) : y;
+        if (m.type === "audio") {
+          // progresso della "riproduzione" = avanzamento del brano dopo la sua comparsa
+          let prog = 0, playing = false;
+          if (i === mus.idx && mus.start != null) {
+            playing = t >= mus.start;
+            const d = mus.dur != null ? mus.dur : 20;
+            prog = Math.max(0, Math.min(1, (t - mus.start) / d));
+          }
+          drawAudio(m, mm, yy, o, alpha, playing, prog, i);
+        } else {
+          drawText(m, mm, yy, o, alpha);
+        }
+        y -= GAP; if (y < TOP - 40) break;
       }
-      // barra "storia" in alto
-      const dur = totalDuration(msgs, o);
-      const prog = dur ? Math.max(0, Math.min(1, t / dur)) : 0;
+      const dur = totalDuration(msgs, o); const prog = dur ? Math.max(0, Math.min(1, t / dur)) : 0;
       drawChrome(o);
       ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(0, 0, W, 6);
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W * prog, 6);
     }
 
-    function drawBubble(m, mm, y, o, alpha) {
+    function bubbleBg(out) { return out ? "#0f4a3b" : "#1f2c33"; }
+
+    function drawText(m, mm, y, o, alpha) {
       ctx.save(); ctx.globalAlpha = alpha;
-      const out = m.side === "out";
-      const x = out ? W - 20 - mm.w : 20;
-      ctx.fillStyle = out ? "#0f4a3b" : "#1f2c33";
-      ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
-      rr(x, y, mm.w, mm.h, 20); ctx.fill();
-      ctx.shadowColor = "transparent";
-      ctx.fillStyle = "#e6edf3"; ctx.font = FONT + "px system-ui, sans-serif";
-      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
+      ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, mm.w, mm.h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#e6edf3"; ctx.font = FONT + "px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
       for (let li = 0; li < mm.lines.length; li++) ctx.fillText(mm.lines[li], x + PAD, y + PAD + li * LINE + 2);
       ctx.restore();
     }
 
-    function totalDuration(msgs, o) {
-      const lastReveal = msgs.length ? revealTime(msgs.length - 1, o) + 1.6 : 2;
-      if (audioBuffer) return Math.max(lastReveal, audioBuffer.duration);
-      return lastReveal;
+    function drawAudio(m, mm, y, o, alpha, playing, prog, seed) {
+      ctx.save(); ctx.globalAlpha = alpha;
+      const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
+      ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      rr(x, y, mm.w, mm.h, 20); ctx.fill(); ctx.shadowColor = "transparent";
+      // cerchio play/pausa
+      const cx = x + 40, cy = y + mm.h / 2;
+      ctx.fillStyle = o.accent; ctx.beginPath(); ctx.arc(cx, cy, 26, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff";
+      if (playing) { ctx.fillRect(cx - 8, cy - 11, 6, 22); ctx.fillRect(cx + 2, cy - 11, 6, 22); }
+      else { ctx.beginPath(); ctx.moveTo(cx - 7, cy - 11); ctx.lineTo(cx - 7, cy + 11); ctx.lineTo(cx + 12, cy); ctx.closePath(); ctx.fill(); }
+      // waveform
+      const bars = waveform(seed * 2654435761 >>> 0 || 7, 22);
+      const wx = x + 80, ww = mm.w - 80 - 90, cyw = cy;
+      const played = Math.round(prog * bars.length);
+      for (let i = 0; i < bars.length; i++) {
+        const bh = bars[i] * 34; const bxx = wx + i * (ww / bars.length);
+        ctx.fillStyle = i < played ? "#cfe8dc" : "rgba(255,255,255,.35)";
+        ctx.fillRect(bxx, cyw - bh / 2, 4, bh);
+      }
+      // durata / etichetta
+      ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = "22px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      let lab = m.label;
+      if (audioBuffer) { const d = audioBuffer.duration; lab = playing ? mmss(prog * d) + " / " + mmss(d) : mmss(d); }
+      else if (!lab) lab = "🎵";
+      ctx.fillText(lab, x + mm.w - 18, cy + 26);
+      ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.font = "22px system-ui"; ctx.fillText("🎤", x + mm.w - 18, cy - 22);
+      ctx.restore();
     }
 
-    // ---------- util colore ----------
     function shade(hex, amt) {
-      const n = parseInt(hex.slice(1), 16);
-      let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const n = parseInt(hex.slice(1), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
       const f = amt < 0 ? (1 + amt) : 1, add = amt > 0 ? amt * 255 : 0;
-      r = Math.round(r * f + add); g = Math.round(g * f + add); b = Math.round(b * f + add);
-      r = Math.min(255, r); g = Math.min(255, g); b = Math.min(255, b);
+      r = Math.min(255, Math.round(r * f + add)); g = Math.min(255, Math.round(g * f + add)); b = Math.min(255, Math.round(b * f + add));
       return "rgb(" + r + "," + g + "," + b + ")";
     }
 
@@ -279,51 +298,56 @@ in|(drop)</textarea>
       setStatus("Carico l'audio…");
       try {
         const buf = await file.arrayBuffer();
-        const AC = window.AudioContext || window.webkitAudioContext;
-        const ac = new AC();
-        audioBuffer = await ac.decodeAudioData(buf);
-        ac.close();
-        setStatus("Audio pronto: " + audioBuffer.duration.toFixed(1) + "s");
+        const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC();
+        audioBuffer = await ac.decodeAudioData(buf); ac.close();
+        setStatus("Audio pronto: " + audioBuffer.duration.toFixed(1) + "s (entra col messaggio audio)");
+        redraw();
       } catch (err) { audioBuffer = null; setStatus("Audio non leggibile: " + err.message); }
     });
 
     // ---------- tap tempo ----------
     let taps = [];
     $("tap").addEventListener("click", () => {
-      const now = performance.now();
-      taps = taps.filter((x) => now - x < 3000); taps.push(now);
-      if (taps.length >= 2) {
-        let sum = 0; for (let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1];
-        const bpm = Math.round(60000 / (sum / (taps.length - 1)));
-        $("bpm").value = Math.max(40, Math.min(220, bpm));
-      }
+      const now = performance.now(); taps = taps.filter((x) => now - x < 3000); taps.push(now);
+      if (taps.length >= 2) { let sum = 0; for (let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1]; $("bpm").value = Math.max(40, Math.min(220, Math.round(60000 / (sum / (taps.length - 1))))); redraw(); }
     });
 
-    // ---------- anteprima ----------
-    let raf = null, previewAC = null, previewSrc = null;
-    function stopPreview() {
-      if (raf) cancelAnimationFrame(raf), raf = null;
-      if (previewSrc) { try { previewSrc.stop(); } catch (e) {} previewSrc = null; }
-      if (previewAC) { previewAC.close(); previewAC = null; }
-    }
-    $("play").addEventListener("click", () => {
-      stopPreview();
-      const msgs = parseMessages(), o = opts(), dur = totalDuration(msgs, o);
-      let t0 = performance.now();
-      if (audioBuffer) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        previewAC = new AC();
-        previewSrc = previewAC.createBufferSource();
-        previewSrc.buffer = audioBuffer; previewSrc.connect(previewAC.destination);
-        previewSrc.start(); t0 = performance.now();
+    // ---------- clock condiviso (video + audio) ----------
+    function run(msgs, o, audible, onEnd) {
+      const dur = totalDuration(msgs, o);
+      const mus = music(msgs, o);
+      let ac = null, src = null;
+      if (audioBuffer && mus.idx >= 0) {
+        const AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
+        src = ac.createBufferSource(); src.buffer = audioBuffer;
+        const dest = audible ? ac.destination : ac.createMediaStreamDestination();
+        src.connect(dest);
+        src.start(ac.currentTime + Math.max(0, mus.start)); // la musica entra col messaggio audio
+        run._audioTrack = audible ? null : dest.stream.getAudioTracks()[0];
+      } else { run._audioTrack = null; }
+      let done = false;
+      function cleanup() {
+        if (done) return; done = true;
+        if (run._raf) cancelAnimationFrame(run._raf);
+        if (src) try { src.stop(); } catch (e) {}
+        if (ac && ac.state !== "closed") try { ac.close(); } catch (e) {}
       }
+      run._stop = cleanup;
+      const t0 = performance.now();
       function loop() {
         const t = (performance.now() - t0) / 1000;
         draw(msgs, t, o);
-        if (t >= dur) { stopPreview(); setStatus("Anteprima finita."); return; }
-        raf = requestAnimationFrame(loop);
+        if (t >= dur) { cleanup(); onEnd && onEnd(); return; }
+        run._raf = requestAnimationFrame(loop);
       }
-      setStatus("Anteprima in corso…"); loop();
+      run._raf = requestAnimationFrame(loop);
+      return dur;
+    }
+
+    $("play").addEventListener("click", () => {
+      if (run._stop) run._stop();
+      setStatus("Anteprima in corso…");
+      run(parseMessages(), opts(), true, () => setStatus("Anteprima finita."));
     });
 
     // ---------- export ----------
@@ -333,58 +357,38 @@ in|(drop)</textarea>
       return "";
     }
     $("export").addEventListener("click", async () => {
-      stopPreview();
+      if (run._stop) run._stop();
       const btn = $("export"); const mime = pickMime();
       if (!mime) { setStatus("Il browser non supporta la registrazione video."); return; }
-      const msgs = parseMessages(), o = opts(), dur = totalDuration(msgs, o);
-      btn.disabled = true; setStatus("🔴 Registro… (" + dur.toFixed(1) + "s)");
+      const msgs = parseMessages(), o = opts();
+      btn.disabled = true;
       try {
         const vstream = canvas.captureStream(30);
+        // avvia il clock (crea l'eventuale traccia audio schedulata)
+        const dur = run(msgs, o, false, null);
         const tracks = [vstream.getVideoTracks()[0]];
-        let ac = null, src = null;
-        if (audioBuffer) {
-          const AC = window.AudioContext || window.webkitAudioContext;
-          ac = new AC();
-          const dest = ac.createMediaStreamDestination();
-          src = ac.createBufferSource(); src.buffer = audioBuffer; src.connect(dest);
-          tracks.push(dest.stream.getAudioTracks()[0]);
-        }
-        const combined = new MediaStream(tracks);
-        const rec = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8000000, audioBitsPerSecond: 160000 });
+        if (run._audioTrack) tracks.push(run._audioTrack);
+        const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 8000000, audioBitsPerSecond: 160000 });
         const chunks = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
         const stopped = new Promise((r) => (rec.onstop = r));
+        setStatus("🔴 Registro… (" + dur.toFixed(1) + "s)");
         rec.start();
-        const t0 = performance.now();
-        if (src) src.start();
-        await new Promise((res) => {
-          function loop() {
-            const t = (performance.now() - t0) / 1000;
-            draw(msgs, t, o);
-            if (t >= dur) { res(); return; }
-            requestAnimationFrame(loop);
-          }
-          requestAnimationFrame(loop);
-        });
-        rec.stop(); await stopped;
-        if (src) try { src.stop(); } catch (e) {}
-        if (ac) ac.close();
+        await new Promise((res) => setTimeout(res, dur * 1000 + 250));
+        rec.stop(); await stopped; if (run._stop) run._stop();
         const ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
         const blob = new Blob(chunks, { type: mime });
         if (blob.size < 1024) throw new Error("video vuoto");
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const url = URL.createObjectURL(blob); const a = document.createElement("a");
         a.download = "takethatchat_studio_9x16." + ext; a.href = url; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 8000);
-        setStatus("✓ Esportato (" + ext.toUpperCase() + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (audioBuffer ? " con audio" : " — nessun audio caricato"));
-      } catch (err) {
-        setStatus("Export non riuscito: " + err.message);
-      } finally { btn.disabled = false; }
+        const withAudio = audioBuffer && music(msgs, o).idx >= 0;
+        setStatus("✓ Esportato (" + ext.toUpperCase() + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (withAudio ? " — musica dal messaggio audio" : " — nessun audio"));
+      } catch (err) { setStatus("Export non riuscito: " + err.message); }
+      finally { btn.disabled = false; }
     });
 
     function setStatus(s) { $("status").textContent = s; }
-
-    // ---------- init: disegno statico ----------
-    function redraw() { draw(parseMessages(), 1e9, opts()); }
+    function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts()); }
     ["script", "contact", "bpm", "bpermsg", "startbeats", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
     redraw();
   })();
