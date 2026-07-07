@@ -121,6 +121,9 @@ out|😍🔥</textarea>
     const canvas = $("canvas"), ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
     let audioBuffer = null;
+    const VFPS = 30, NB = 28;          // fps di riferimento e n. barre spettro
+    let FEAT = null;                    // feature audio per-frame (energia, spettro, beat)
+    let particles = [], prevBeat = 0;   // sistema particelle (stato tra i frame)
 
     // ---------- parsing conversazione ----------
     function parseMessages() {
@@ -225,9 +228,120 @@ out|😍🔥</textarea>
       ctx.fillStyle = o.accent; ctx.beginPath(); ctx.arc(W - 52, H - 44, 30, 0, 7); ctx.fill();
     }
 
+    // ---------- effetti audio-reattivi ----------
+    function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
+
+    function fft(re, im) {
+      const n = re.length;
+      for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { const tr = re[i]; re[i] = re[j]; re[j] = tr; const ti = im[i]; im[i] = im[j]; im[j] = ti; } }
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let cwr = 1, cwi = 0;
+          for (let k = 0; k < len / 2; k++) {
+            const ar = re[i + k], ai = im[i + k];
+            const br = re[i + k + len / 2] * cwr - im[i + k + len / 2] * cwi;
+            const bi = re[i + k + len / 2] * cwi + im[i + k + len / 2] * cwr;
+            re[i + k] = ar + br; im[i + k] = ai + bi; re[i + k + len / 2] = ar - br; im[i + k + len / 2] = ai - bi;
+            const ncwr = cwr * wr - cwi * wi; cwi = cwr * wi + cwi * wr; cwr = ncwr;
+          }
+        }
+      }
+    }
+
+    // Analizza il brano per ogni frame: energia (0..1), spettro (NB barre), beat (0..1)
+    function buildFeatures(msgs, o) {
+      FEAT = null;
+      if (!audioBuffer) return;
+      const mus = music(msgs, o); if (mus.idx < 0) return;
+      const total = totalDuration(msgs, o), sr = audioBuffer.sampleRate, N = 1024;
+      const nF = Math.max(1, Math.round(total * VFPS) + 1), ch0 = audioBuffer.getChannelData(0);
+      const re = new Float32Array(N), im = new Float32Array(N), en = new Float32Array(nF), feats = new Array(nF);
+      let emax = 1e-6, bmax = 1e-6;
+      for (let f = 0; f < nF; f++) {
+        const t = f / VFPS, bars = new Float32Array(NB); let e = 0;
+        if (t >= mus.start) {
+          const center = Math.floor((mus.offset + (t - mus.start)) * sr);
+          let rms = 0;
+          for (let i = 0; i < N; i++) { const idx = center - (N >> 1) + i, s = (idx >= 0 && idx < ch0.length) ? ch0[idx] : 0, w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)); re[i] = s * w; im[i] = 0; rms += s * s; }
+          e = Math.sqrt(rms / N);
+          fft(re, im);
+          for (let b = 0; b < NB; b++) {
+            const lo = Math.floor(Math.pow(N / 2, b / NB)), hi = Math.max(lo + 1, Math.floor(Math.pow(N / 2, (b + 1) / NB)));
+            let m = 0, c = 0; for (let k = lo; k < hi && k < N / 2; k++) { m += Math.hypot(re[k], im[k]); c++; }
+            bars[b] = c ? m / c : 0; if (bars[b] > bmax) bmax = bars[b];
+          }
+        }
+        en[f] = e; if (e > emax) emax = e; feats[f] = { e: 0, b: bars, k: 0 };
+      }
+      const WIN = Math.round(VFPS * 0.4);
+      for (let f = 0; f < nF; f++) {
+        let sum = 0, cnt = 0; for (let j = Math.max(0, f - WIN); j <= f; j++) { sum += en[j]; cnt++; }
+        const avg = cnt ? sum / cnt : 0;
+        feats[f].e = en[f] / emax;
+        feats[f].k = avg > 1e-4 ? Math.max(0, Math.min(1, (en[f] - avg) / (avg * 1.2))) : 0;
+        for (let b = 0; b < NB; b++) feats[f].b[b] /= bmax;
+      }
+      FEAT = feats;
+    }
+
+    function featAt(t) { if (!FEAT) return null; return FEAT[Math.max(0, Math.min(FEAT.length - 1, Math.round(t * VFPS)))]; }
+
+    function resetFX() { particles = []; prevBeat = 0; }
+    function updateParticles(dt, beat, o) {
+      if (beat > 0.45 && prevBeat <= 0.45) {
+        for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, sp = 160 + Math.random() * 340; particles.push({ x: W / 2 + (Math.random() - 0.5) * 180, y: H * 0.6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160, life: 1, col: Math.random() < 0.5 ? o.accent : "#ffffff" }); }
+      }
+      prevBeat = beat;
+      for (const p of particles) { p.vy += 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 0.85; }
+      if (particles.length > 400) particles.splice(0, particles.length - 400);
+      particles = particles.filter((p) => p.life > 0);
+    }
+    function drawParticles() {
+      ctx.save();
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.shadowColor = p.col; ctx.shadowBlur = 12;
+        ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 5 * p.life, 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Visualizer spettro a tutta larghezza (sopra la barra di input), stile neon
+    function drawVisualizer(feat, o) {
+      if (!feat) return;
+      const bars = feat.b, base = H - 96, maxH = 190, n = bars.length, bw = W / n;
+      ctx.save(); ctx.globalAlpha = 0.92; ctx.shadowColor = o.accent; ctx.shadowBlur = 16;
+      for (let i = 0; i < n; i++) {
+        const h = 6 + bars[i] * maxH;
+        const g = ctx.createLinearGradient(0, base - h, 0, base);
+        g.addColorStop(0, "rgba(255,255,255,.9)"); g.addColorStop(0.35, hexA(o.accent, 0.95)); g.addColorStop(1, hexA(o.accent, 0.1));
+        ctx.fillStyle = g;
+        ctx.fillRect(i * bw + 2, base - h, bw - 4, h);
+      }
+      ctx.restore();
+    }
+
     const TOP = 150, BOTTOM = H - 90, ANIM = 0.28;
-    function draw(msgs, t, o) {
-      ctx.fillStyle = o.wallpaper; ctx.fillRect(0, 0, W, H);
+    function draw(msgs, t, o, live) {
+      const feat = featAt(t), en = feat ? feat.e : 0, beat = feat ? feat.k : 0;
+
+      ctx.save();
+      // zoom-punch sul beat
+      const zoom = 1 + en * 0.03 + beat * 0.03;
+      ctx.translate(W / 2, H / 2); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -H / 2);
+
+      // sfondo + glow radiale reattivo
+      ctx.fillStyle = o.wallpaper; ctx.fillRect(-40, -40, W + 80, H + 80);
+      if (en > 0.02) {
+        const a = Math.min(0.55, en * 0.55 + beat * 0.35);
+        const g = ctx.createRadialGradient(W / 2, H * 0.44, 40, W / 2, H * 0.44, H * 0.62);
+        g.addColorStop(0, hexA(o.accent, a)); g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+      // visualizer dietro ai messaggi
+      drawVisualizer(feat, o);
+
       const mus = music(msgs, o);
       let vis = 0;
       for (let i = 0; i < msgs.length; i++) { if (t >= revealTime(i, o)) vis = i + 1; else break; }
@@ -257,7 +371,7 @@ out|😍🔥</textarea>
             playing = t >= mus.start;
             prog = Math.max(0, Math.min(1, (t - mus.start) / eff));
           }
-          drawAudio(m, mm, yy, o, alpha, playing, prog, i, eff);
+          drawAudio(m, mm, yy, o, alpha, playing, prog, i, eff, (playing && feat) ? feat.b : null);
         } else {
           drawText(m, mm, yy, o, alpha);
         }
@@ -267,6 +381,13 @@ out|😍🔥</textarea>
       drawChrome(o);
       ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(0, 0, W, 6);
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W * prog, 6);
+
+      // particelle sui beat + flash
+      if (live) updateParticles(1 / VFPS, beat, o);
+      drawParticles();
+      if (beat > 0.6) { ctx.fillStyle = "rgba(255,255,255," + ((beat - 0.6) * 0.6) + ")"; ctx.fillRect(0, 0, W, H); }
+
+      ctx.restore();
     }
 
     function bubbleBg(out) { return out ? "#0f4a3b" : "#1f2c33"; }
@@ -295,7 +416,7 @@ out|😍🔥</textarea>
       ctx.restore();
     }
 
-    function drawAudio(m, mm, y, o, alpha, playing, prog, seed, effDur) {
+    function drawAudio(m, mm, y, o, alpha, playing, prog, seed, effDur, liveBars) {
       ctx.save(); ctx.globalAlpha = alpha;
       const out = m.side === "out"; const x = out ? W - 20 - mm.w : 20;
       ctx.fillStyle = bubbleBg(out); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
@@ -306,12 +427,14 @@ out|😍🔥</textarea>
       ctx.fillStyle = "#fff";
       if (playing) { ctx.fillRect(cx - 8, cy - 11, 6, 22); ctx.fillRect(cx + 2, cy - 11, 6, 22); }
       else { ctx.beginPath(); ctx.moveTo(cx - 7, cy - 11); ctx.lineTo(cx - 7, cy + 11); ctx.lineTo(cx + 12, cy); ctx.closePath(); ctx.fill(); }
-      // waveform
-      const bars = waveform(seed * 2654435761 >>> 0 || 7, 22);
+      // waveform: quando suona usa lo spettro LIVE della canzone, altrimenti barre statiche
+      const NBAR = 22, seeded = waveform(seed * 2654435761 >>> 0 || 7, NBAR);
       const wx = x + 80, ww = mm.w - 80 - 90, cyw = cy;
-      const played = Math.round(prog * bars.length);
-      for (let i = 0; i < bars.length; i++) {
-        const bh = bars[i] * 34; const bxx = wx + i * (ww / bars.length);
+      const played = Math.round(prog * NBAR);
+      for (let i = 0; i < NBAR; i++) {
+        let amp = seeded[i];
+        if (liveBars) { const src = liveBars[Math.floor(i / NBAR * liveBars.length)] || 0; amp = 0.18 + src * 0.9; }
+        const bh = Math.min(38, amp * 40); const bxx = wx + i * (ww / NBAR);
         ctx.fillStyle = i < played ? "#cfe8dc" : "rgba(255,255,255,.35)";
         ctx.fillRect(bxx, cyw - bh / 2, 4, bh);
       }
@@ -355,6 +478,7 @@ out|😍🔥</textarea>
     // ---------- clock condiviso (video + audio) ----------
     function run(msgs, o, audible, onEnd) {
       const dur = totalDuration(msgs, o);
+      buildFeatures(msgs, o); resetFX();
       const mus = music(msgs, o);
       let ac = null, src = null;
       if (audioBuffer && mus.idx >= 0) {
@@ -377,7 +501,7 @@ out|😍🔥</textarea>
       const t0 = performance.now();
       function loop() {
         const t = (performance.now() - t0) / 1000;
-        draw(msgs, t, o);
+        draw(msgs, t, o, true);
         if (t >= dur) { cleanup(); onEnd && onEnd(); return; }
         run._raf = requestAnimationFrame(loop);
       }
@@ -399,7 +523,6 @@ out|😍🔥</textarea>
     }
 
     // --- WebCodecs: video H.264 a frame rate COSTANTE + audio AAC (max fluidità su TikTok) ---
-    const VFPS = 30;
     function hasWC() {
       return typeof window.VideoEncoder === "function" && typeof window.VideoFrame === "function" &&
         window.Mp4Muxer && typeof window.Mp4Muxer.Muxer === "function";
@@ -415,6 +538,7 @@ out|😍🔥</textarea>
       if (!hasWC()) return null;
       const W = canvas.width, H = canvas.height, total = totalDuration(msgs, o);
       const codec = await pickAvc(W, H); if (!codec) return null;
+      buildFeatures(msgs, o); resetFX();
       const mus = music(msgs, o);
       const wantAudio = !!(audioBuffer && mus.idx >= 0);
       let aacOk = false;
@@ -457,7 +581,7 @@ out|😍🔥</textarea>
         const btn = $("export"), totalFrames = Math.max(1, Math.round(total * VFPS)), fdur = 1e6 / VFPS;
         for (let i = 0; i < totalFrames; i++) {
           if (err) return null;
-          draw(msgs, i / VFPS, o);
+          draw(msgs, i / VFPS, o, true);
           const vf = new VideoFrame(canvas, { timestamp: Math.round(i * fdur), duration: Math.round(fdur) });
           venc.encode(vf, { keyFrame: i % VFPS === 0 }); vf.close();
           if (venc.encodeQueueSize > 8 || i % 10 === 0) { await new Promise((r) => setTimeout(r, 0)); btn.textContent = "🎞️ " + Math.round(i / totalFrames * 100) + "%"; }
@@ -515,7 +639,7 @@ out|😍🔥</textarea>
     });
 
     function setStatus(s) { $("status").textContent = s; }
-    function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts()); }
+    function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts(), false); }
     ["script", "contact", "bpm", "bpermsg", "startbeats", "songstart", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
     redraw();
   })();
