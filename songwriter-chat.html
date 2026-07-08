@@ -58,20 +58,17 @@ shock|Aspetta… ascolta con le cuffie 🎧
 audio|La mia canzone
 out|😍🔥</textarea>
         </label>
-        <p class="hint">Prefissi: <code>in|</code> loro · <code>out|</code> tu · <code>audio|</code> nota vocale = <strong>qui parte la musica</strong> (puoi scrivere un'etichetta dopo la barra). Per un vocale in arrivo usa <code>audio in|</code>.</p>
+        <p class="hint">Prefissi: <code>in|</code> loro · <code>out|</code> tu · <code>audio|</code> nota vocale = <strong>dove il video simula l'ascolto del pezzo</strong> (poi metti il suono su TikTok). Per un vocale in arrivo usa <code>audio in|</code>.</p>
         <label style="margin-top:12px">Nome contatto
           <input type="text" id="contact" value="Il Producer 🎧" maxlength="40" />
         </label>
       </div>
 
       <div class="panel">
-        <h2>Musica &amp; ritmo</h2>
-        <label>File audio (la tua canzone)
-          <input type="file" id="audio" accept="audio/*" />
-        </label>
-        <p class="hint">La canzone <strong>non</strong> parte all'inizio: entra quando compare il messaggio <code>audio|</code> e suona da lì fino alla fine.</p>
-        <label style="margin-top:12px">Inizio canzone (<code>mm:ss</code> o secondi) — es. il ritornello
-          <input type="text" id="songstart" value="0:00" />
+        <h2>Ritmo &amp; ascolto</h2>
+        <p class="hint">🔇 Il video è <strong>muto</strong>: il suono lo aggiungi su TikTok. Imposta il <strong>BPM del pezzo</strong> così messaggi ed effetti vanno a tempo.</p>
+        <label style="margin-top:12px">Durata ascolto del vocale (secondi)
+          <input type="number" id="listen" value="8" min="1" max="60" step="1" />
         </label>
         <div class="bpm-row" style="margin-top:12px">
           <label>BPM
@@ -121,7 +118,7 @@ out|😍🔥</textarea>
         <button id="export" type="button">🎬 Esporta video</button>
       </div>
       <p class="status" id="status"></p>
-      <p class="hint" style="text-align:center; margin-top:4px">Prototipo: l'export include l'<strong>audio</strong>. Verifica il risultato sul tuo dispositivo.</p>
+      <p class="hint" style="text-align:center; margin-top:4px">Il video è <strong>muto</strong>: esportalo e aggiungi il suono su TikTok. L'anteprima è senza audio.</p>
     </section>
   </div>
 
@@ -132,7 +129,6 @@ out|😍🔥</textarea>
     const $ = (id) => document.getElementById(id);
     const canvas = $("canvas"), ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
-    let audioBuffer = null;
     const VFPS = 30, NB = 28;          // fps di riferimento e n. barre spettro
     let FEAT = null;                    // feature audio per-frame (energia, spettro, beat)
     let particles = [], prevBeat = 0;   // sistema particelle (stato tra i frame)
@@ -152,18 +148,12 @@ out|😍🔥</textarea>
       }).filter(Boolean);
     }
 
-    function parseTime(str) {
-      str = String(str || "").trim(); if (!str) return 0;
-      if (str.indexOf(":") >= 0) { const a = str.split(":"); return (+a[0] || 0) * 60 + (+a[1] || 0); }
-      return +str || 0;
-    }
-
     function opts() {
       return {
         bpm: Math.max(40, Math.min(220, +$("bpm").value || 120)),
         bpermsg: Math.max(1, +$("bpermsg").value || 2),
         startbeats: Math.max(0, +$("startbeats").value || 0),
-        songStart: Math.max(0, parseTime($("songstart").value)),
+        listenSecs: Math.max(1, Math.min(60, +$("listen").value || 8)),
         intro: $("intro").value,
         wallpaper: $("wallpaper").value,
         accent: $("accent").value,
@@ -174,23 +164,17 @@ out|😍🔥</textarea>
     function introDur(o) { return o.intro === "call" ? 2.8 : o.intro === "notification" ? 2.4 : 0; }
     function revealTime(i, o) { return introDur(o) + (o.startbeats + i * o.bpermsg) * (60 / o.bpm); }
 
-    // indice del primo messaggio audio (dove entra la musica) e relativi tempi
+    // indice del messaggio audio (dove il video simula l'ascolto) e finestra di ascolto
     function music(msgs, o) {
       const idx = msgs.findIndex((m) => m.type === "audio");
-      if (idx < 0) return { idx: -1, start: null, dur: null, offset: 0 };
-      const start = revealTime(idx, o);
-      let offset = 0, dur = null;
-      if (audioBuffer) {
-        offset = Math.max(0, Math.min(o.songStart || 0, Math.max(0, audioBuffer.duration - 0.5)));
-        dur = Math.max(0.5, audioBuffer.duration - offset); // durata suonata (dal ritornello alla fine)
-      }
-      return { idx, start, dur, offset };
+      if (idx < 0) return { idx: -1, start: null, dur: null };
+      return { idx, start: revealTime(idx, o), dur: o.listenSecs };
     }
 
     function totalDuration(msgs, o) {
       const mus = music(msgs, o);
-      if (mus.idx >= 0 && mus.dur != null) return mus.start + mus.dur;
       const lastReveal = msgs.length ? revealTime(msgs.length - 1, o) + 1.8 : 2;
+      if (mus.idx >= 0) return Math.max(lastReveal, mus.start + mus.dur + 0.6);
       return lastReveal;
     }
 
@@ -264,38 +248,27 @@ out|😍🔥</textarea>
       }
     }
 
-    // Analizza il brano per ogni frame: energia (0..1), spettro (NB barre), beat (0..1)
+    // Feature SINTETICHE guidate dal BPM (il video è muto: il suono si mette su TikTok).
+    // Durante la finestra di ascolto, glow/particelle/spettro pulsano sul beat impostato.
     function buildFeatures(msgs, o) {
       FEAT = null;
-      if (!audioBuffer) return;
       const mus = music(msgs, o); if (mus.idx < 0) return;
-      const total = totalDuration(msgs, o), sr = audioBuffer.sampleRate, N = 1024;
-      const nF = Math.max(1, Math.round(total * VFPS) + 1), ch0 = audioBuffer.getChannelData(0);
-      const re = new Float32Array(N), im = new Float32Array(N), en = new Float32Array(nF), feats = new Array(nF);
-      let emax = 1e-6, bmax = 1e-6;
+      const total = totalDuration(msgs, o), nF = Math.max(1, Math.round(total * VFPS) + 1);
+      const beatDur = 60 / o.bpm, feats = new Array(nF);
       for (let f = 0; f < nF; f++) {
-        const t = f / VFPS, bars = new Float32Array(NB); let e = 0;
-        if (t >= mus.start) {
-          const center = Math.floor((mus.offset + (t - mus.start)) * sr);
-          let rms = 0;
-          for (let i = 0; i < N; i++) { const idx = center - (N >> 1) + i, s = (idx >= 0 && idx < ch0.length) ? ch0[idx] : 0, w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)); re[i] = s * w; im[i] = 0; rms += s * s; }
-          e = Math.sqrt(rms / N);
-          fft(re, im);
+        const t = f / VFPS, bars = new Float32Array(NB); let e = 0, k = 0;
+        if (t >= mus.start && t < mus.start + mus.dur) {
+          const local = t - mus.start, phase = (local % beatDur) / beatDur; // 0..1 nel beat
+          const env = Math.exp(-phase * 4);            // "kick" che decade
+          e = 0.35 + 0.65 * env;
+          k = env > 0.72 ? env : 0;                    // beat vicino all'attacco
           for (let b = 0; b < NB; b++) {
-            const lo = Math.floor(Math.pow(N / 2, b / NB)), hi = Math.max(lo + 1, Math.floor(Math.pow(N / 2, (b + 1) / NB)));
-            let m = 0, c = 0; for (let k = lo; k < hi && k < N / 2; k++) { m += Math.hypot(re[k], im[k]); c++; }
-            bars[b] = c ? m / c : 0; if (bars[b] > bmax) bmax = bars[b];
+            const osc = 0.5 + 0.5 * Math.sin(t * (3 + b * 0.7) + b * 1.3);
+            const low = env * (1 - b / NB);            // basse più reattive al beat
+            bars[b] = Math.min(1, 0.12 + osc * 0.45 * (0.4 + e * 0.6) + low * 0.6);
           }
         }
-        en[f] = e; if (e > emax) emax = e; feats[f] = { e: 0, b: bars, k: 0 };
-      }
-      const WIN = Math.round(VFPS * 0.4);
-      for (let f = 0; f < nF; f++) {
-        let sum = 0, cnt = 0; for (let j = Math.max(0, f - WIN); j <= f; j++) { sum += en[j]; cnt++; }
-        const avg = cnt ? sum / cnt : 0;
-        feats[f].e = en[f] / emax;
-        feats[f].k = avg > 1e-4 ? Math.max(0, Math.min(1, (en[f] - avg) / (avg * 1.2))) : 0;
-        for (let b = 0; b < NB; b++) feats[f].b[b] /= bmax;
+        feats[f] = { e, b: bars, k };
       }
       FEAT = feats;
     }
@@ -515,9 +488,7 @@ out|😍🔥</textarea>
       }
       // durata / etichetta
       ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = "22px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      let lab = m.label;
-      if (audioBuffer) { lab = playing ? mmss(prog * effDur) + " / " + mmss(effDur) : mmss(effDur); }
-      else if (!lab) lab = "🎵";
+      let lab = playing ? mmss(prog * effDur) + " / " + mmss(effDur) : mmss(effDur);
       ctx.fillText(lab, x + mm.w - 18, cy + 26);
       ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.font = "22px system-ui"; ctx.fillText("🎤", x + mm.w - 18, cy - 22);
       ctx.restore();
@@ -530,19 +501,6 @@ out|😍🔥</textarea>
       return "rgb(" + r + "," + g + "," + b + ")";
     }
 
-    // ---------- audio ----------
-    $("audio").addEventListener("change", async (e) => {
-      const file = e.target.files[0]; if (!file) return;
-      setStatus("Carico l'audio…");
-      try {
-        const buf = await file.arrayBuffer();
-        const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC();
-        audioBuffer = await ac.decodeAudioData(buf); ac.close();
-        setStatus("Audio pronto: " + audioBuffer.duration.toFixed(1) + "s (entra col messaggio audio)");
-        redraw();
-      } catch (err) { audioBuffer = null; setStatus("Audio non leggibile: " + err.message); }
-    });
-
     // ---------- tap tempo ----------
     let taps = [];
     $("tap").addEventListener("click", () => {
@@ -550,27 +508,14 @@ out|😍🔥</textarea>
       if (taps.length >= 2) { let sum = 0; for (let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1]; $("bpm").value = Math.max(40, Math.min(220, Math.round(60000 / (sum / (taps.length - 1))))); redraw(); }
     });
 
-    // ---------- clock condiviso (video + audio) ----------
+    // ---------- clock dell'animazione (video muto) ----------
     function run(msgs, o, audible, onEnd) {
       const dur = totalDuration(msgs, o);
       buildFeatures(msgs, o); resetFX();
-      const mus = music(msgs, o);
-      let ac = null, src = null;
-      if (audioBuffer && mus.idx >= 0) {
-        const AC = window.AudioContext || window.webkitAudioContext; ac = new AC();
-        src = ac.createBufferSource(); src.buffer = audioBuffer;
-        const dest = audible ? ac.destination : ac.createMediaStreamDestination();
-        src.connect(dest);
-        // la musica entra col messaggio audio, partendo dall'offset scelto (es. il ritornello)
-        src.start(ac.currentTime + Math.max(0, mus.start), Math.max(0, mus.offset || 0));
-        run._audioTrack = audible ? null : dest.stream.getAudioTracks()[0];
-      } else { run._audioTrack = null; }
       let done = false;
       function cleanup() {
         if (done) return; done = true;
         if (run._raf) cancelAnimationFrame(run._raf);
-        if (src) try { src.stop(); } catch (e) {}
-        if (ac && ac.state !== "closed") try { ac.close(); } catch (e) {}
       }
       run._stop = cleanup;
       const t0 = performance.now();
@@ -592,12 +537,12 @@ out|😍🔥</textarea>
 
     // ---------- export ----------
     function pickMime() {
-      const c = ["video/mp4;codecs=h264,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+      const c = ["video/mp4;codecs=h264", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
       for (const m of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
       return "";
     }
 
-    // --- WebCodecs: video H.264 a frame rate COSTANTE + audio AAC (max fluidità su TikTok) ---
+    // --- WebCodecs: video H.264 a frame rate COSTANTE (video muto: il suono si mette su TikTok) ---
     function hasWC() {
       return typeof window.VideoEncoder === "function" && typeof window.VideoFrame === "function" &&
         window.Mp4Muxer && typeof window.Mp4Muxer.Muxer === "function";
@@ -608,51 +553,18 @@ out|😍🔥</textarea>
       }
       return null;
     }
-    // ritorna {blob, audio} oppure null (→ fallback)
-    async function encodeAV(msgs, o) {
+    // ritorna {blob} oppure null (→ fallback)
+    async function encodeVideo(msgs, o) {
       if (!hasWC()) return null;
       const W = canvas.width, H = canvas.height, total = totalDuration(msgs, o);
       const codec = await pickAvc(W, H); if (!codec) return null;
       buildFeatures(msgs, o); resetFX();
-      const mus = music(msgs, o);
-      const wantAudio = !!(audioBuffer && mus.idx >= 0);
-      let aacOk = false;
-      if (wantAudio && typeof window.AudioEncoder === "function" && typeof window.AudioData === "function") {
-        try { const s = await AudioEncoder.isConfigSupported({ codec: "mp4a.40.2", sampleRate: audioBuffer.sampleRate, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 160000 }); aacOk = !!(s && s.supported); } catch (e) { aacOk = false; }
-      }
-      // se serve la musica ma l'AAC non c'è, meglio il fallback (che include l'audio)
-      // che un video CFR muto.
-      if (wantAudio && !aacOk) return null;
       try {
         const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
-        let err = null, vcount = 0, acount = 0;
-        const cfg = { target: new ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: VFPS }, fastStart: "in-memory" };
-        if (wantAudio && aacOk) cfg.audio = { codec: "aac", numberOfChannels: audioBuffer.numberOfChannels, sampleRate: audioBuffer.sampleRate };
-        const muxer = new Muxer(cfg);
+        let err = null, vcount = 0;
+        const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: VFPS }, fastStart: "in-memory" });
         const venc = new VideoEncoder({ output: (c, m) => { vcount++; try { muxer.addVideoChunk(c, m); } catch (e) { err = e; } }, error: (e) => { err = e; } });
         venc.configure({ codec, width: W, height: H, bitrate: 9000000, framerate: VFPS });
-        let aenc = null;
-        if (wantAudio && aacOk) {
-          aenc = new AudioEncoder({ output: (c, m) => { acount++; try { muxer.addAudioChunk(c, m); } catch (e) { err = e; } }, error: (e) => { err = e; } });
-          try { aenc.configure({ codec: "mp4a.40.2", sampleRate: audioBuffer.sampleRate, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 160000 }); } catch (e) { aenc = null; }
-        }
-        // audio: PCM su tutta la durata, silenzio prima del messaggio audio, brano dall'offset
-        if (aenc) {
-          const sr = audioBuffer.sampleRate, ch = audioBuffer.numberOfChannels, totalSamples = Math.ceil(total * sr);
-          const planes = []; for (let c = 0; c < ch; c++) planes.push(new Float32Array(totalSamples));
-          const startS = Math.floor(mus.start * sr), offS = Math.floor((mus.offset || 0) * sr);
-          for (let c = 0; c < ch; c++) { const sd = audioBuffer.getChannelData(c); for (let n = 0; startS + n < totalSamples && offS + n < sd.length; n++) planes[c][startS + n] = sd[offS + n]; }
-          const BLK = 8192;
-          for (let pos = 0; pos < totalSamples; pos += BLK) {
-            if (err) return null;
-            const N = Math.min(BLK, totalSamples - pos), data = new Float32Array(N * ch);
-            for (let c = 0; c < ch; c++) data.set(planes[c].subarray(pos, pos + N), c * N);
-            const ad = new AudioData({ format: "f32-planar", sampleRate: sr, numberOfFrames: N, numberOfChannels: ch, timestamp: Math.round(pos / sr * 1e6), data });
-            aenc.encode(ad); ad.close();
-            if (aenc.encodeQueueSize > 16) await new Promise((r) => setTimeout(r, 0));
-          }
-        }
-        // video: un frame ogni 1/30s, timestamp esatti
         const btn = $("export"), totalFrames = Math.max(1, Math.round(total * VFPS)), fdur = 1e6 / VFPS;
         for (let i = 0; i < totalFrames; i++) {
           if (err) return null;
@@ -662,24 +574,20 @@ out|😍🔥</textarea>
           if (venc.encodeQueueSize > 8 || i % 10 === 0) { await new Promise((r) => setTimeout(r, 0)); btn.textContent = "🎞️ " + Math.round(i / totalFrames * 100) + "%"; }
         }
         await venc.flush(); try { venc.close(); } catch (e) {}
-        if (aenc) { await aenc.flush(); try { aenc.close(); } catch (e) {} }
         if (err || vcount === 0) return null;
-        if (aenc && acount === 0) return null; // audio previsto ma non prodotto → fallback
         muxer.finalize();
         const buf = muxer.target && muxer.target.buffer;
         if (!buf || buf.byteLength < 512) return null;
-        return { blob: new Blob([buf], { type: "video/mp4" }), audio: !!aenc };
-      } catch (e) { console.warn("encodeAV fallito:", e); return null; }
+        return { blob: new Blob([buf], { type: "video/mp4" }) };
+      } catch (e) { console.warn("encodeVideo fallito:", e); return null; }
     }
 
-    // --- fallback: MediaRecorder in tempo reale (con audio) ---
+    // --- fallback: MediaRecorder in tempo reale (video muto) ---
     function recordRealtime(msgs, o, mime) {
       return new Promise((resolve, reject) => {
         const vstream = canvas.captureStream(30);
         const dur = run(msgs, o, false, null);
-        const tracks = [vstream.getVideoTracks()[0]];
-        if (run._audioTrack) tracks.push(run._audioTrack);
-        const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 8000000, audioBitsPerSecond: 160000 });
+        const rec = new MediaRecorder(new MediaStream([vstream.getVideoTracks()[0]]), { mimeType: mime, videoBitsPerSecond: 8000000 });
         const chunks = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
         rec.onstop = () => { if (run._stop) run._stop(); resolve(new Blob(chunks, { type: mime })); };
         rec.onerror = (e) => reject(e.error || new Error("errore registrazione"));
@@ -694,28 +602,27 @@ out|😍🔥</textarea>
       const msgs = parseMessages(), o = opts();
       btn.disabled = true;
       try {
-        let blob = null, ext = "mp4", viaWC = false, hadAudio = false;
-        if (hasWC()) { btn.textContent = "🎞️ 0%"; try { const r = await encodeAV(msgs, o); if (r) { blob = r.blob; viaWC = true; hadAudio = r.audio; } } catch (e) { blob = null; } }
+        let blob = null, ext = "mp4", viaWC = false;
+        if (hasWC()) { btn.textContent = "🎞️ 0%"; try { const r = await encodeVideo(msgs, o); if (r) { blob = r.blob; viaWC = true; } } catch (e) { blob = null; } }
         if (!blob) {
           const mime = pickMime();
           if (!mime) { setStatus("Il browser non supporta l'export video."); return; }
           setStatus("🔴 Registro…");
           blob = await recordRealtime(msgs, o, mime);
           ext = mime.indexOf("mp4") >= 0 ? "mp4" : "webm";
-          hadAudio = !!(audioBuffer && music(msgs, o).idx >= 0);
         }
         if (!blob || blob.size < 1024) throw new Error("video vuoto");
         const url = URL.createObjectURL(blob); const a = document.createElement("a");
-        a.download = "takethatchat_studio_9x16." + ext; a.href = url; a.click();
+        a.download = "takethatchat_9x16." + ext; a.href = url; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 8000);
-        setStatus("✓ Esportato (" + ext.toUpperCase() + (viaWC ? " · CFR" : "") + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB)" + (hadAudio ? " — con musica" : " — nessun audio"));
+        setStatus("✓ Video muto esportato (" + ext.toUpperCase() + (viaWC ? " · CFR" : "") + ", " + (blob.size / 1024 / 1024).toFixed(1) + " MB) — ora aggiungi il suono su TikTok");
       } catch (err) { setStatus("Export non riuscito: " + err.message); }
       finally { btn.disabled = false; btn.textContent = oldTxt; }
     });
 
     function setStatus(s) { $("status").textContent = s; }
     function redraw() { if (!run._raf) draw(parseMessages(), 1e9, opts(), false); }
-    ["script", "contact", "bpm", "bpermsg", "startbeats", "songstart", "intro", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
+    ["script", "contact", "bpm", "bpermsg", "startbeats", "listen", "intro", "wallpaper", "accent"].forEach((id) => $(id).addEventListener("input", redraw));
     redraw();
   })();
   </script>
