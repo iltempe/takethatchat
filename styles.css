@@ -373,6 +373,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .credits-heart { margin-right: 4px; }
 .credits a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .credits a:hover { text-decoration: underline; }
+.coffee { color: #1a1a1a !important; background: #ffdd00; padding: 2px 9px; border-radius: 20px; }
+.coffee:hover { filter: brightness(1.05); text-decoration: none !important; }
 
 /* ============ MOBILE ============ */
 @media (max-width: 680px) {
